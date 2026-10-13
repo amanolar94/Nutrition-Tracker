@@ -1,0 +1,12 @@
+import React, {useEffect, useState} from 'react';
+import {supabase, loadDiary} from './backend.js';
+export default function Auth({children}) {
+ const [session,setSession]=useState(null),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[diary,setDiary]=useState(null),[loadError,setLoadError]=useState(false),[retry,setRetry]=useState(0);
+ useEffect(()=>{if(!supabase)return;let active=true;const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{if(active){setSession(s);setReady(true);}});supabase.auth.getSession().then(({data,error})=>{if(active){if(error)setMessage('Δεν ήταν δυνατή η ανάκτηση της σύνδεσης.');setSession(data.session);setReady(true);}});return()=>{active=false;subscription.unsubscribe();};},[]);
+ useEffect(()=>{let active=true;setDiary(null);setLoadError(false);if(session)loadDiary(session.user.id).then(data=>{if(active)setDiary(data);}).catch(()=>{if(active)setLoadError(true);});return()=>{active=false;};},[session?.user.id,retry]);
+ async function loginWithGoogle(){setBusy(true);setMessage('');try{const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+'/'}});if(error)throw error;}catch{setMessage('Η σύνδεση με Google δεν ξεκίνησε. Δοκίμασε ξανά.');}finally{setBusy(false);}}
+ if(!supabase)return <main className="auth"><section className="panel"><h1>Nutrition Tracker</h1><p>Η σύνδεση λογαριασμών δεν έχει ενεργοποιηθεί ακόμη.</p><p className="muted">Μόλις ολοκληρωθεί η ρύθμιση, θα μπορείς να αποθηκεύεις τα γεύματά σου στον λογαριασμό σου.</p></section></main>;
+ if(!ready)return <main role="status">Έλεγχος σύνδεσης…</main>;
+ if(session){if(loadError)return <main className="auth"><p role="alert">Δεν φορτώθηκαν τα δεδομένα σου. Έλεγξε τη σύνδεση και δοκίμασε ξανά.</p><button onClick={()=>setRetry(n=>n+1)}>Επανάληψη</button><button onClick={()=>supabase.auth.signOut()}>Αποσύνδεση</button></main>;if(!diary)return <main role="status">Φόρτωση ημερολογίου…</main>;return children(session.user,diary);}
+ return <main className="auth"><section className="panel"><p className="eyebrow">NUTRITION TRACKER</p><h1>Καλώς ήρθες</h1><p className="muted">Τα γεύματα και οι στόχοι σου, μαζί σου σε κάθε συσκευή.</p><button className="google-login" disabled={busy} onClick={loginWithGoogle}>{busy?'Μετάβαση στη Google…':'Συνέχεια με Google'}</button>{message&&<p role="alert">{message}</p>}<p className="muted">Συνδέσου με τον λογαριασμό Google σου για να ανοίξεις το ημερολόγιό σου.</p></section></main>;
+}
