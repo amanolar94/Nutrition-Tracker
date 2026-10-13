@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {makeHandler,validActionMeal} from '../api/meals.js';
+const meal={request_id:'11111111-1111-4111-8111-111111111111',date:'2026-10-14',name:'Γιαούρτι',category:'Πρωινό',calories:300,protein:20};
+const token='nt_'+'a'.repeat(64);
+async function call(req,client){const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.code=n;return this;},json(v){this.body=v;return this;}};await makeHandler(()=>client)(req,res);return res;}
+test('validates calendar date, category and numeric totals',()=>{assert.equal(validActionMeal(meal),true);for(const m of [{date:'2026-02-30'},{request_id:'bad'},{protein:-1},{calories:Infinity},{name:' '},{category:'invalid'},{calories:'300'}])assert.equal(validActionMeal({...meal,...m}),false);});
+test('unauthenticated writes never reach storage',async()=>{const res=await call({method:'POST',headers:{},body:meal},{rpc(){throw Error('must not be called');}});assert.equal(res.code,401);assert.equal(res.headers['Cache-Control'],'no-store');});
+test('key determines owner, caller user_id is not forwarded and request id is preserved',async()=>{let args;const res=await call({method:'POST',headers:{authorization:`Bearer ${token}`},body:{...meal,user_id:'attacker'}},{async rpc(name,input){assert.equal(name,'add_chatgpt_meal');args=input;return{data:{id:'saved'},error:null};}});assert.equal(res.code,200);assert.equal(args.p_token,token);assert.equal(args.p_request_id,meal.request_id);assert.equal(Object.hasOwn(args,'user_id'),false);assert.equal(Object.hasOwn(args,'p_user_id'),false);assert.deepEqual(res.body,{meal:{id:'saved'}});});
+test('revoked keys and database failures never leak raw errors or claim success',async()=>{for(const [code,status] of [['28000',401],['42P01',503]]){const res=await call({method:'POST',headers:{authorization:`Bearer ${token}`},body:meal},{async rpc(){return{error:{code,message:'secret server details'}};}});assert.equal(res.code,status);assert.equal(Object.hasOwn(res.body,'meal'),false);assert.doesNotMatch(JSON.stringify(res.body),/secret server details/);}});
+test('rejects wrong methods and malformed JSON',async()=>{assert.equal((await call({method:'GET',headers:{}},null)).code,405);assert.equal((await call({method:'POST',headers:{authorization:`Bearer ${token}`},body:'{'},null)).code,400);});

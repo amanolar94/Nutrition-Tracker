@@ -1,0 +1,138 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Nutrition Tracker — add meals",
+    "version": "1.0.0",
+    "description": "Add a meal to the account associated with the personal action key."
+  },
+  "servers": [
+    {
+      "url": "https://nutrition-tracker-gamma-flax.vercel.app"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "personalKey": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "personalKey": []
+    }
+  ],
+  "paths": {
+    "/api/meals": {
+      "post": {
+        "operationId": "addMeal",
+        "summary": "Save a meal after the user confirms the quantities and nutritional estimates",
+        "x-openai-isConsequential": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "request_id",
+                  "date",
+                  "name",
+                  "category",
+                  "calories",
+                  "protein"
+                ],
+                "properties": {
+                  "request_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Generate a fresh UUID for each new meal. Reuse the same UUID for retries to avoid duplicates."
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Meal date YYYY-MM-DD in the user calendar. Ask if uncertain; default timezone Europe/Athens."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "Πρωινό",
+                      "Μεσημεριανό",
+                      "Βραδινό",
+                      "Σνακ"
+                    ]
+                  },
+                  "calories": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Total kcal for the whole meal, not per 100g."
+                  },
+                  "protein": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Total grams of protein for the whole meal."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Meal saved or previously saved with this request_id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meal": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "category": {
+                          "type": "string"
+                        },
+                        "calories": {
+                          "type": "number"
+                        },
+                        "protein": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid meal; correct inputs before retrying"
+          },
+          "401": {
+            "description": "Missing, revoked or expired personal key"
+          },
+          "503": {
+            "description": "Storage unavailable; do not claim a meal was saved"
+          }
+        }
+      }
+    }
+  }
+}
