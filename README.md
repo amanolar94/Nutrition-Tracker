@@ -6,7 +6,7 @@
 
 1. Δημιούργησε project στο Supabase.
 2. Εκτέλεσε το `supabase/schema.sql` στον SQL Editor μία φορά. Δημιουργεί πίνακες και Row Level Security: κάθε χρήστης βλέπει και αλλάζει μόνο τις δικές του εγγραφές.
-3. Στο Supabase Authentication → Sign In / Providers → Email ενεργοποίησε Email/password, τις εγγραφές νέων χρηστών και την επιβεβαίωση email. Η φόρμα εγγραφής απαιτεί κωδικό τουλάχιστον 8 χαρακτήρων· όρισε αντίστοιχο ή αυστηρότερο κανόνα στο Supabase.
+3. Στο Supabase Authentication → Sign In / Providers → Email ενεργοποίησε Email/password και απενεργοποίησε το Allow new users to sign up. Η εφαρμογή επιτρέπει μόνο σύνδεση υπαρχόντων χρηστών. Δημιούργησε τους λογαριασμούς από Authentication → Users → Add user → Create new user, ορίζοντας email/κωδικό και επιβεβαίωση email όπου χρειάζεται.
 4. Στο Authentication → URL Configuration όρισε το Site URL και επιτρεπόμενο Redirect URL `https://nutrition-tracker-gamma-flax.vercel.app/`. Για ανάπτυξη πρόσθεσε `http://localhost:5173/`.
 5. Αντέγραψε το `.env.example` σε `.env.local`. Συμπλήρωσε το Project URL και το **publishable key** από τις ρυθμίσεις του project. Ποτέ service_role ή secret key στο frontend. Οι μεταβλητές VITE_* είναι δημόσιες και ενσωματώνονται στο build. Στο Vercel όρισέ τες στις Environment Variables.
 6. Επανεκκίνησε τον dev server ή κάνε νέο build μετά από αλλαγή μεταβλητών. Δεν απαιτούνται Google OAuth credentials.
@@ -25,7 +25,7 @@ npm test
 npm run build
 ```
 
-Για τον τελικό έλεγχο με πραγματικό project: κάνε εγγραφή με email/κωδικό, επιβεβαίωσε το email και συνδέσου, πρόσθεσε γεύμα, άλλαξε στόχους και επαναφόρτωσε. Έλεγξε τα ίδια δεδομένα από δεύτερο browser. Με δεύτερο λογαριασμό επιβεβαίωσε ότι δεν φαίνονται τα γεύματα του πρώτου και ότι οι απευθείας αιτήσεις για ξένο user_id απορρίπτονται από RLS.
+Για τον τελικό έλεγχο με πραγματικό project: συνδέσου με υπάρχοντα λογαριασμό email/κωδικού, πρόσθεσε γεύμα, άλλαξε στόχους και επαναφόρτωσε. Έλεγξε τα ίδια δεδομένα από δεύτερο browser. Με δεύτερο λογαριασμό επιβεβαίωσε ότι δεν φαίνονται τα γεύματα του πρώτου και ότι οι απευθείας αιτήσεις για ξένο user_id απορρίπτονται από RLS.
 
 ## Αποθήκευση
 
