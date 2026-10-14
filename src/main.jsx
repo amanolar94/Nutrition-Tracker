@@ -1,27 +1,478 @@
-import React,{useEffect,useState} from 'react';
-import {createRoot} from 'react-dom/client';
-import {localDate,totals,validMeal} from './nutrition.js';
-import {supabase,insertMeal,deleteMeal,updateGoals,loadDiary} from './backend.js';
-import Auth from './Auth.jsx';
-import ChatGPTConnection from './ChatGPTConnection.jsx';
-import OAuthConsent from './OAuthConsent.jsx';
-import OAuthConnections from './OAuthConnections.jsx';
-import {summarizeWeek} from './summaries.js';
-import './style.css';
-const metrics=[['calories','Θερμίδες','kcal'],['protein','Πρωτεΐνη','g'],['carbs','Υδατάνθρακες','g'],['fat','Λίπος','g']];
-const number=n=>Number(n).toLocaleString('el-GR',{maximumFractionDigits:1});
-function App({user,initial}){
- const [meals,setMeals]=useState(initial.meals),[goals,setGoals]=useState(initial.goals),[weights,setWeights]=useState(initial.weights||[]),[date,setDate]=useState(localDate()),[dayType,setDayType]=useState('rest'),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[refreshing,setRefreshing]=useState(false),[migrationPending,setMigrationPending]=useState(initial.migrationPending||false);
- function apply(next){setMigrationPending(next.migrationPending||false);setMeals(next.meals);setGoals(next.goals);setWeights(next.weights||[]);}
- async function refresh(){if(busy||refreshing)return;setRefreshing(true);try{apply(await loadDiary(user.id));setNotice('');}catch{setNotice('Η ενημέρωση απέτυχε. Τα τελευταία δεδομένα παραμένουν στην οθόνη.');}finally{setRefreshing(false);}}
- useEffect(()=>{let active=true;async function onFocus(){if(busy||document.visibilityState==='hidden')return;try{const next=await loadDiary(user.id);if(active)apply(next);}catch{if(active)setNotice('Δεν ήταν δυνατή η ενημέρωση των δεδομένων. Πάτησε Ανανέωση.');}}window.addEventListener('focus',onFocus);document.addEventListener('visibilitychange',onFocus);return()=>{active=false;window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);};},[user.id,busy]);
- async function add(e){e.preventDefault();if(busy||refreshing)return;const form=e.currentTarget,f=new FormData(form);const meal={id:crypto.randomUUID(),date,name:f.get('name').trim(),category:f.get('category')};for(const [key]of (migrationPending?metrics.slice(0,2):metrics))meal[key]=Number(f.get(key));if(!validMeal(meal)){setError('Έλεγξε το όνομα και τις διατροφικές τιμές.');return;}setBusy(true);setError('');try{await insertMeal(user.id,meal);setMeals(previous=>[...previous,meal]);form.reset();setNotice('');}catch{setError('Το γεύμα δεν αποθηκεύτηκε. Δοκίμασε ξανά.');}finally{setBusy(false);}}
- async function remove(id){if(busy||refreshing)return;if(!window.confirm('Να διαγραφεί αυτό το γεύμα;'))return;setBusy(true);try{await deleteMeal(user.id,id);setMeals(previous=>previous.filter(m=>m.id!==id));setNotice('');}catch{setNotice('Το γεύμα δεν διαγράφηκε.');}finally{setBusy(false);}}
- async function saveGoals(e){e.preventDefault();if(busy||refreshing)return;const f=new FormData(e.currentTarget),next={};for(const mode of (migrationPending?['rest']:['rest','training']))for(const [key]of (migrationPending?metrics.slice(0,2):metrics))next[mode==='rest'?key:`training_${key}`]=Number(f.get(`${mode}_${key}`));if(Object.entries(next).some(([key,v])=>!Number.isFinite(v)||(key.includes('calories')||key.includes('protein')?v<=0:v<0)))return;setBusy(true);try{await updateGoals(user.id,next);setGoals(next);setNotice('Οι στόχοι αποθηκεύτηκαν.');}catch{setNotice('Οι στόχοι δεν αποθηκεύτηκαν.');}finally{setBusy(false);}}
- async function logout(){setBusy(true);try{const {error}=await supabase.auth.signOut();if(error)throw error;}catch{setNotice('Η αποσύνδεση απέτυχε.');}finally{setBusy(false);}}
- const weekly=summarizeWeek(meals,date);
- const daily=meals.filter(m=>m.date===date),sum=totals(meals,date),fuel=totals(daily.filter(m=>m.category==='Τροφοδοσία προπόνησης'),date),incomplete=daily.filter(m=>m.carbs==null||m.fat==null).length;
- const targets=Object.fromEntries(metrics.map(([key])=>[key,goals[dayType==='rest'?key:`training_${key}`]]));
- return <><header><a className="brand" href="./">◉ <span>nutrition<span className="light"> tracker</span></span></a><div className="account"><span>{user.email}</span><button disabled={busy} onClick={logout}>Αποσύνδεση</button></div></header><main>{migrationPending&&<p role="status" className="panel">Η αναβάθμιση MCP εκκρεμεί στη βάση. Οι υπάρχουσες καταγραφές και το login λειτουργούν· τα νέα macros, βάρη και MCP ενεργοποιούνται μετά τη migration.</p>}<fieldset disabled={busy||refreshing}><div className="heading"><div><p className="eyebrow">ΤΟ ΗΜΕΡΟΛΟΓΙΟ ΣΟΥ · EUROPE/ATHENS</p><h1>Μικρά βήματα.<br/>Καλύτερες συνήθειες.</h1><p className="muted">Πρόσθεσε γεύματα από το ChatGPT και δες εδώ την πρόοδό σου.</p></div><div className="date-controls"><label>Ημερομηνία<input aria-label="Ημερομηνία καταγραφής" type="date" value={date} required onChange={e=>e.target.value&&setDate(e.target.value)}/></label><label>Στόχοι ημέρας<select disabled={migrationPending} value={dayType} onChange={e=>setDayType(e.target.value)}><option value="rest">Ανάπαυση</option><option value="training">Προπόνηση</option></select></label></div></div><section className="stats macro-stats" aria-label="Ημερήσια σύνολα">{metrics.map(([key,label,unit])=><article className="stat" key={key}><span>{label}</span><div><strong>{number(sum[key])}</strong><span className="muted"> / {number(targets[key])} {unit}</span></div><progress max={targets[key]||1} value={Math.min(sum[key],targets[key]||1)}/><small>{sum[key]>=targets[key]?'Έφτασες τον στόχο':`${number(targets[key]-sum[key])} ${unit} μέχρι τον στόχο`}</small></article>)}</section>{incomplete>0&&<p role="status" className="muted">{incomplete} παλιές καταγραφές έχουν άγνωστους υδατάνθρακες/λίπος· τα αντίστοιχα σύνολα είναι ελλιπή.</p>}<section className="panel weekly"><h2>Εβδομαδιαία σύνολα</h2><p className="muted">{weekly.start_date} έως {weekly.end_date}</p><p>{metrics.map(([key,label,unit])=>`${label}: ${number(weekly.totals[key])} ${unit}`).join(' · ')}</p><small className="muted">Τροφοδοσία προπόνησης: {number(weekly.workout_fueling.calories)} kcal, περιλαμβάνεται ήδη στα σύνολα. {weekly.incomplete_macro_records>0?'Υπάρχουν παλιές καταγραφές με άγνωστα macros.':''}</small></section><section className="panel fueling"><h2>Τροφοδοσία προπόνησης</h2><p>{number(fuel.calories)} kcal · {number(fuel.protein)} g πρωτεΐνη · {number(fuel.carbs)} g υδατάνθρακες · {number(fuel.fat)} g λίπος</p><small className="muted">Περιλαμβάνεται ήδη στα ημερήσια σύνολα.</small></section><div className="columns"><section className="panel"><h2>Χειροκίνητη καταχώριση</h2><p className="muted">Εναλλακτικά από το site.</p><form onSubmit={add}><label>Όνομα γεύματος<input name="name" maxLength="120" placeholder="π.χ. Γιαούρτι με βρώμη" required/></label><label>Κατηγορία<select name="category">{(migrationPending?['Πρωινό','Μεσημεριανό','Βραδινό','Σνακ']:['Πρωινό','Μεσημεριανό','Βραδινό','Σνακ','Τροφοδοσία προπόνησης']).map(c=><option key={c}>{c}</option>)}</select></label><div className="pair macro-inputs">{(migrationPending?metrics.slice(0,2):metrics).map(([key,label,unit])=><label key={key}>{label} ({unit})<input name={key} type="number" inputMode="decimal" min={key==='calories'?'.1':'0'} step=".1" required/></label>)}</div>{error&&<p role="alert">{error}</p>}<button type="submit">＋ Προσθήκη γεύματος</button></form></section><section className="panel diary"><div className="section-title"><h2>Τα γεύματά σου</h2><span className="badge">{daily.length} καταγραφές</span><button className="refresh" onClick={refresh}>{refreshing?'Ενημέρωση…':'Ανανέωση'}</button></div>{daily.length===0?<div className="empty"><span>◌</span><h3>Μια νέα αρχή στο πιάτο σου</h3><p className="muted">Δεν υπάρχουν γεύματα για αυτή την ημέρα.</p></div>:<ul>{daily.map(m=><li key={m.id}><div><small>{m.category}</small><h3>{m.name}</h3><p>{number(m.calories)} kcal · Π {number(m.protein)} g · Υ {m.carbs==null?'?':number(m.carbs)} g · Λ {m.fat==null?'?':number(m.fat)} g</p></div><button className="delete" onClick={()=>remove(m.id)} aria-label={`Διαγραφή ${m.name}`}>×</button></li>)}</ul>}</section></div><details className="panel goals"><summary>Στόχοι ανάπαυσης και προπόνησης</summary><form onSubmit={saveGoals}>{(migrationPending?['rest']:['rest','training']).map(mode=><section key={mode}><h3>{mode==='rest'?'Ανάπαυση':'Προπόνηση'}</h3><div className="pair">{(migrationPending?metrics.slice(0,2):metrics).map(([key,label,unit])=>{const value=goals[mode==='rest'?key:`training_${key}`];return <label key={`${mode}-${key}-${value}`}>{label} ({unit})<input name={`${mode}_${key}`} type="number" inputMode="decimal" defaultValue={value} min={key==='calories'||key==='protein'?'.1':'0'} step=".1" required/></label>;})}</div></section>)}<button>Αποθήκευση στόχων</button></form><small className="muted">Οι αρχικοί στόχοι είναι προσωρινοί και προσαρμόζονται στις ανάγκες σου.</small></details><section className="panel weight-history"><h2>Ιστορικό βάρους</h2><p className="muted">Αρχικό βάρος αναφοράς: 100 kg — δεν αποτελεί καταγεγραμμένη μέτρηση.</p>{weights.length===0?<p>Κατάγραψε την πρώτη μέτρηση μέσω ChatGPT.</p>:<ul>{weights.slice(-30).reverse().map(w=><li key={w.id}><time dateTime={w.date}>{w.date}</time><strong>{number(w.weight_kg)} kg</strong></li>)}</ul>}</section>{notice&&<p role="alert">{notice}</p>}</fieldset><OAuthConnections/><ChatGPTConnection userId={user.id}/><footer>Τα στοιχεία αποθηκεύονται στον λογαριασμό σου. <a href="/privacy.html">Απόρρητο</a></footer></main></>;
+import React, { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { localDate, totals, validMeal } from "./nutrition.js";
+import {
+  supabase,
+  insertMeal,
+  deleteMeal,
+  updateGoals,
+  loadDiary,
+} from "./backend.js";
+import { metrics, categories, dateLabel, number } from "./display.js";
+import { summarizeWeek } from "./summaries.js";
+import Auth from "./Auth.jsx";
+import ChatGPTConnection from "./ChatGPTConnection.jsx";
+import OAuthConsent from "./OAuthConsent.jsx";
+import OAuthConnections from "./OAuthConnections.jsx";
+import Navigation, { initialView } from "./components/Navigation.jsx";
+import DateBar from "./components/DateBar.jsx";
+import DailyView from "./components/DailyView.jsx";
+import WeeklyView from "./components/WeeklyView.jsx";
+import ProgressView from "./components/ProgressView.jsx";
+import GoalEditor from "./components/GoalEditor.jsx";
+import Dialog from "./components/Dialog.jsx";
+import Icon from "./components/Icons.jsx";
+import "./style.css";
+const titles = {
+  day: "Ημερήσια εικόνα",
+  week: "Εβδομαδιαία εικόνα",
+  progress: "Βάρος και πρόοδος",
+  settings: "Οι ρυθμίσεις σου",
+};
+function App({ user, initial }) {
+  const [meals, setMeals] = useState(initial.meals),
+    [goals, setGoals] = useState(initial.goals),
+    [weights, setWeights] = useState(initial.weights || []);
+  const [date, setDate] = useState(localDate()),
+    [dayType, setDayType] = useState("rest"),
+    [view, setView] = useState(initialView);
+  const [busy, setBusy] = useState(false),
+    [refreshing, setRefreshing] = useState(false),
+    [migrationPending, setMigrationPending] = useState(
+      initial.migrationPending || false,
+    );
+  const [notice, setNotice] = useState(null),
+    [lastSync, setLastSync] = useState(new Date()),
+    [adding, setAdding] = useState(false),
+    [deleting, setDeleting] = useState(null),
+    [formError, setFormError] = useState("");
+  const readVersion = useRef(0);
+  function tell(text, tone = "info") {
+    setNotice({ text, tone });
+  }
+  function apply(next) {
+    setMigrationPending(next.migrationPending || false);
+    setMeals(next.meals);
+    setGoals(next.goals);
+    setWeights(next.weights || []);
+    setLastSync(new Date());
+  }
+  function navigate(next) {
+    setView(next);
+    window.location.hash = next;
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+  useEffect(() => {
+    const onHash = () => {
+      const next = window.location.hash.slice(1);
+      if (["day", "week", "progress", "settings"].includes(next)) setView(next);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  async function refresh() {
+    if (busy || refreshing) return;
+    const ticket = ++readVersion.current;
+    setRefreshing(true);
+    try {
+      const next = await loadDiary(user.id);
+      if (ticket === readVersion.current) {
+        apply(next);
+        setNotice(null);
+      }
+    } catch {
+      tell(
+        "Δεν έγινε ενημέρωση. Βλέπεις ακόμη τα τελευταία διαθέσιμα δεδομένα.",
+        "error",
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }
+  useEffect(() => {
+    let active = true;
+    async function onFocus() {
+      if (busy || document.visibilityState === "hidden") return;
+      const ticket = ++readVersion.current;
+      try {
+        const next = await loadDiary(user.id);
+        if (active && ticket === readVersion.current) apply(next);
+      } catch {
+        if (active)
+          tell(
+            "Δεν έγινε αυτόματη ενημέρωση. Δοκίμασε το κουμπί ανανέωσης.",
+            "error",
+          );
+      }
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [user.id, busy]);
+  async function add(e) {
+    e.preventDefault();
+    if (busy || refreshing) return;
+    const f = new FormData(e.currentTarget);
+    const meal = {
+      id: crypto.randomUUID(),
+      date,
+      name: f.get("name").trim(),
+      category: f.get("category"),
+    };
+    for (const [key] of migrationPending ? metrics.slice(0, 2) : metrics)
+      meal[key] = Number(f.get(key));
+    if (!validMeal(meal)) {
+      setFormError("Έλεγξε το όνομα και τις διατροφικές τιμές.");
+      return;
+    }
+    ++readVersion.current;
+    setBusy(true);
+    setFormError("");
+    try {
+      await insertMeal(user.id, meal);
+      setMeals((previous) => [...previous, meal]);
+      setAdding(false);
+      tell("Το γεύμα αποθηκεύτηκε.");
+    } catch {
+      setFormError(
+        "Το γεύμα δεν αποθηκεύτηκε. Τα στοιχεία σου παραμένουν στη φόρμα για να δοκιμάσεις ξανά.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove() {
+    if (busy || refreshing || !deleting) return;
+    ++readVersion.current;
+    setBusy(true);
+    setFormError("");
+    try {
+      await deleteMeal(user.id, deleting.id);
+      setMeals((previous) => previous.filter((m) => m.id !== deleting.id));
+      setDeleting(null);
+      tell("Το γεύμα διαγράφηκε.");
+    } catch {
+      setFormError("Δεν έγινε διαγραφή. Δοκίμασε ξανά.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveGoals(next) {
+    if (busy || refreshing) return false;
+    ++readVersion.current;
+    setBusy(true);
+    try {
+      await updateGoals(user.id, next);
+      setGoals((previous) => ({ ...previous, ...next }));
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function logout() {
+    if (busy) return;
+    ++readVersion.current;
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch {
+      tell("Η αποσύνδεση απέτυχε. Δοκίμασε ξανά.", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const daily = meals.filter((m) => m.date === date),
+    sum = totals(meals, date),
+    fuel = totals(
+      daily.filter((m) => m.category === "Τροφοδοσία προπόνησης"),
+      date,
+    ),
+    weekly = summarizeWeek(meals, date),
+    disabled = busy || refreshing;
+  return (
+    <>
+      <a className="skip-link" href="#main-content">
+        Μετάβαση στο περιεχόμενο
+      </a>
+      <header className="app-header">
+        <a
+          className="brand"
+          href="#day"
+          aria-label="Nutrition Tracker · Ημέρα"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("day");
+          }}
+        >
+          <span className="brand-mark">n.</span>
+          <span>
+            nutrition <span className="light">tracker</span>
+          </span>
+        </a>
+        <div className="header-actions">
+          <button
+            className={`icon-button ${refreshing ? "is-refreshing" : ""}`}
+            aria-label="Ανανέωση"
+            title="Ανανέωση δεδομένων"
+            disabled={disabled}
+            onClick={refresh}
+          >
+            <Icon name="refresh" />
+          </button>
+          <button
+            className="account-button"
+            aria-label="Λογαριασμός και ρυθμίσεις"
+            onClick={() => {
+              navigate("settings");
+              requestAnimationFrame(() =>
+                document
+                  .getElementById("account-settings")
+                  ?.scrollIntoView({ block: "start" }),
+              );
+            }}
+          >
+            <Icon name="user" />
+          </button>
+        </div>
+      </header>
+      <Navigation view={view} onChange={navigate} />
+      <main id="main-content" tabIndex="-1">
+        {notice && (
+          <div
+            className={`notice ${notice.tone}`}
+            role={notice.tone === "error" ? "alert" : "status"}
+          >
+            <span>{notice.text}</span>
+            <button
+              className="icon-button"
+              aria-label="Κλείσιμο μηνύματος"
+              onClick={() => setNotice(null)}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+        )}
+        {migrationPending && (
+          <p role="status" className="notice">
+            Κάποιες λειτουργίες δεν είναι διαθέσιμες ακόμη. Οι υπάρχουσες
+            καταγραφές και οι στόχοι θερμίδων/πρωτεΐνης συνεχίζουν να
+            λειτουργούν.
+          </p>
+        )}
+        <section
+          id={`panel-${view}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${view}`}
+          tabIndex="0"
+        >
+          <div className="page-heading">
+            <div>
+              <p className="eyebrow">NUTRITION TRACKER</p>
+              <h1>{titles[view]}</h1>
+            </div>
+            <p className="sync-status" role="status">
+              {refreshing
+                ? "Ενημέρωση…"
+                : `Ενημέρωση ${lastSync.toLocaleTimeString("el-GR", { timeZone: "Europe/Athens", hour: "2-digit", minute: "2-digit" })}`}
+            </p>
+          </div>
+          {(view === "day" || view === "week") && (
+            <DateBar date={date} onChange={setDate} weekly={view === "week"} />
+          )}
+          {view === "day" && (
+            <DailyView
+              daily={daily}
+              sum={sum}
+              fuel={fuel}
+              date={date}
+              goals={goals}
+              mode={dayType}
+              onMode={setDayType}
+              onAdd={() => {
+                setFormError("");
+                setAdding(true);
+              }}
+              onDelete={(meal) => {
+                setFormError("");
+                setDeleting(meal);
+              }}
+              disabled={disabled}
+              migrationPending={migrationPending}
+            />
+          )}{" "}
+          {view === "week" && (
+            <WeeklyView
+              weekly={weekly}
+              onDay={(day) => {
+                setDate(day);
+                navigate("day");
+              }}
+            />
+          )}
+          {view === "progress" && <ProgressView weights={weights} />}{" "}
+          <div className="settings-grid" hidden={view !== "settings"}>
+            <div>
+              <GoalEditor
+                goals={goals}
+                migrationPending={migrationPending}
+                busy={disabled}
+                onSave={saveGoals}
+              />
+              {view === "settings" && (
+                <section className="panel">
+                  <h2>Καταγραφή μέσω ChatGPT</h2>
+                  <p className="muted">
+                    Περιέγραψε το γεύμα σου, έλεγξε τις εκτιμήσεις και πες
+                    «καταχώρισέ το». Μόλις αποθηκευτεί, εμφανίζεται στο
+                    ημερολόγιο.
+                  </p>
+                  <p className="data-note">
+                    Οι ημερομηνίες του ημερολογίου ακολουθούν τη ζώνη ώρας
+                    Europe/Athens.
+                  </p>
+                  <OAuthConnections />
+                  <ChatGPTConnection userId={user.id} />
+                </section>
+              )}
+            </div>
+            <section id="account-settings" className="panel account-panel">
+              <p className="eyebrow">ΛΟΓΑΡΙΑΣΜΟΣ</p>
+              <h2>Τα στοιχεία σου</h2>
+              <p className="account-email">{user.email}</p>
+              <p className="muted">
+                Τα δεδομένα σου αποθηκεύονται στον λογαριασμό σου και είναι
+                διαθέσιμα από κάθε συσκευή.
+              </p>
+              <a href="/privacy.html">Πληροφορίες απορρήτου</a>
+              <button className="secondary" disabled={busy} onClick={logout}>
+                Αποσύνδεση
+              </button>
+            </section>
+          </div>
+        </section>
+        <footer>
+          Nutrition Tracker · Τα δεδομένα σου, στον λογαριασμό σου.
+        </footer>
+      </main>
+      {adding && (
+        <Dialog
+          title="Χειροκίνητη καταχώριση"
+          busy={busy}
+          onClose={() => setAdding(false)}
+        >
+          <p className="muted">
+            Για{" "}
+            {dateLabel(date, {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+            . Συμπλήρωσε τις τιμές για όλο το γεύμα.
+          </p>
+          <form onSubmit={add}>
+            <fieldset disabled={disabled}>
+              <label>
+                Όνομα γεύματος
+                <input
+                  name="name"
+                  maxLength="120"
+                  placeholder="π.χ. Γιαούρτι με βρώμη"
+                  autoFocus
+                  required
+                />
+              </label>
+              <label>
+                Κατηγορία
+                <select name="category">
+                  {(migrationPending ? categories.slice(0, 4) : categories).map(
+                    (c) => (
+                      <option key={c}>{c}</option>
+                    ),
+                  )}
+                </select>
+              </label>
+              <div className="pair">
+                {(migrationPending ? metrics.slice(0, 2) : metrics).map(
+                  ([key, label, unit]) => (
+                    <label key={key}>
+                      {label} ({unit})
+                      <input
+                        name={key}
+                        type="number"
+                        inputMode="decimal"
+                        min={key === "calories" ? ".1" : "0"}
+                        step="any"
+                        required
+                      />
+                    </label>
+                  ),
+                )}
+              </div>
+              {formError && (
+                <p className="form-feedback error" role="alert">
+                  {formError}
+                </p>
+              )}
+              <button className="primary" type="submit">
+                {busy ? "Αποθήκευση…" : "Αποθήκευση γεύματος"}
+              </button>
+            </fieldset>
+          </form>
+        </Dialog>
+      )}
+      {deleting && (
+        <Dialog
+          title="Διαγραφή γεύματος;"
+          busy={busy}
+          onClose={() => setDeleting(null)}
+        >
+          <p>
+            Θα διαγραφεί το <b>{deleting.name}</b> ({number(deleting.calories)}{" "}
+            kcal) από τις{" "}
+            {dateLabel(deleting.date, {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+            . Η αλλαγή δεν αναιρείται.
+          </p>
+          {formError && (
+            <p className="form-feedback error" role="alert">
+              {formError}
+            </p>
+          )}
+          <div className="dialog-actions">
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => setDeleting(null)}
+            >
+              Ακύρωση
+            </button>
+            <button className="danger" disabled={disabled} onClick={remove}>
+              {busy ? "Διαγραφή…" : "Διαγραφή γεύματος"}
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </>
+  );
 }
-createRoot(document.getElementById('root')).render(<Auth>{(user,initial)=>window.location.pathname==='/oauth/consent'?<OAuthConsent user={user}/>:<App key={user.id} user={user} initial={initial}/>}</Auth>);
+createRoot(document.getElementById("root")).render(
+  <Auth>
+    {(user, initial) =>
+      window.location.pathname === "/oauth/consent" ? (
+        <OAuthConsent user={user} />
+      ) : (
+        <App key={user.id} user={user} initial={initial} />
+      )
+    }
+  </Auth>,
+);
