@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {database,identity,prepare,execute,approve,userA,userB,meal} from './helpers/database.js';
 let counter=1000;const uuid=()=>`aaaaaaaa-aaaa-4aaa-8aaa-${String(counter++).padStart(12,'0')}`;
-test('actual PostgreSQL migrations, ownership, confirmation, idempotency and all write operations',async()=>{
+test('historical draft migration remains valid; upgrade tests separately cover retired approvals',async()=>{
  const db=await database();try{
  // Migration repeatability must preserve existing tables.
  await db.exec(await readFile(new URL('../supabase/migrations/20261014_mcp.sql',import.meta.url),'utf8'));

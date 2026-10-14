@@ -19,13 +19,12 @@ test('official MCP SDK initialization, tool discovery, validation and anonymous 
  const unauth=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})});assert.equal(unauth.status,401);assert.match(unauth.headers.get('www-authenticate'),/oauth-protected-resource\/mcp/);
  const hostile=await fetch(url,{method:'POST',headers:{Origin:'https://evil.example'},body:'{}'});assert.equal(hostile.status,403);
  await client.connect(new StreamableHTTPClientTransport(url,{requestInit:{headers:{Authorization:'Bearer test-oauth-token'}}}));
- const {tools}=await client.listTools();const names=tools.map(t=>t.name);for(const name of ['addMeal','getMeals','getDailySummary','updateMeal','deleteMeal','addWeight','getWeightHistory','getNutritionTargets','updateNutritionTargets','prepareWrite','getWriteDraft'])assert.ok(names.includes(name));
- const prepareSchema=tools.find(t=>t.name==='prepareWrite').inputSchema;assert.ok(prepareSchema.properties.operation);assert.ok(prepareSchema.properties.payload);assert.ok(prepareSchema.required.includes('payload'));
- const add=tools.find(t=>t.name==='addMeal');assert.equal(add.annotations.readOnlyHint,false);assert.equal(add.annotations.destructiveHint,true);assert.ok(add.inputSchema.required.includes('confirmation_id'));assert.ok(add.inputSchema.required.includes('carbs'));assert.ok(add.inputSchema.required.includes('fat'));
+ const {tools}=await client.listTools();const names=tools.map(t=>t.name);for(const name of ['addMeal','getMeals','getDailySummary','getWeeklySummary','updateMeal','deleteMeal','addWeight','getWeightHistory','getNutritionTargets','updateNutritionTargets'])assert.ok(names.includes(name));
+ assert.equal(names.includes('prepareWrite'),false);assert.equal(names.includes('getWriteDraft'),false);
+ const add=tools.find(t=>t.name==='addMeal');assert.equal(add.annotations.readOnlyHint,false);assert.equal(add.annotations.destructiveHint,true);assert.equal(add.inputSchema.properties.confirmation_id,undefined);assert.ok(add.inputSchema.required.includes('carbs'));assert.ok(add.inputSchema.required.includes('fat'));
  const payload={request_id:uid,date:'2026-10-14',name:'meal',category:'Πρωινό',calories:200,protein:20,carbs:10,fat:5};
- const draft=await client.callTool({name:'prepareWrite',arguments:{operation:'addMeal',payload}});assert.equal(draft.isError,undefined);assert.equal(calls.at(-1).name,'prepare_nutrition_write');
- const unapproved=await client.callTool({name:'addMeal',arguments:{...payload,confirmation_id:uid}});assert.equal(unapproved.isError,true);assert.match(unapproved.content[0].text,/draft not approved/);
- const bad=await client.callTool({name:'addMeal',arguments:{...payload,confirmation_id:uid,calories:-1}});assert.equal(bad.isError,true);
+ const blocked=await client.callTool({name:'addMeal',arguments:payload});assert.equal(calls.at(-1).name,'write_nutrition');assert.equal(blocked.isError,true);assert.match(blocked.content[0].text,/Access denied/);
+ const bad=await client.callTool({name:'addMeal',arguments:{...payload,calories:-1}});assert.equal(bad.isError,true);
  }finally{await client.close();await new Promise(resolve=>httpServer.close(resolve));}
 });
 test('real JWT signature, issuer, resource audience, expiration and OAuth-only identity checks',async()=>{

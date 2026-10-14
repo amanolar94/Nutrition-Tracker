@@ -60,6 +60,33 @@
       }
     },
     {
+      "name": "getWeeklySummary",
+      "description": "Monday–Sunday summary of the week containing date, with daily breakdown, all macros, daily averages and workout fueling included once.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "getWeightHistory",
       "description": "Read recorded weights in kg. Provisional starting weight is not an invented record.",
       "inputSchema": {
@@ -111,325 +138,8 @@
       }
     },
     {
-      "name": "prepareWrite",
-      "description": "Only AFTER explicit user confirmation: create a 15-minute draft of the exact write. Return its confirmation_id; ask the user to approve it in the dashboard, then call the corresponding write tool. This does not change meals, weights or targets.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "operation": {
-            "type": "string",
-            "enum": [
-              "addMeal",
-              "updateMeal",
-              "deleteMeal",
-              "addWeight",
-              "updateNutritionTargets"
-            ]
-          },
-          "payload": {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "request_id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "date": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 120
-                  },
-                  "category": {
-                    "type": "string",
-                    "enum": [
-                      "Πρωινό",
-                      "Μεσημεριανό",
-                      "Βραδινό",
-                      "Σνακ",
-                      "Τροφοδοσία προπόνησης"
-                    ]
-                  },
-                  "calories": {
-                    "type": "number",
-                    "exclusiveMinimum": 0,
-                    "maximum": 100000
-                  },
-                  "protein": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10000
-                  },
-                  "carbs": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10000
-                  },
-                  "fat": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10000
-                  }
-                },
-                "required": [
-                  "request_id",
-                  "date",
-                  "name",
-                  "category",
-                  "calories",
-                  "protein",
-                  "carbs",
-                  "fat"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "request_id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "meal_id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "date": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 120
-                  },
-                  "category": {
-                    "type": "string",
-                    "enum": [
-                      "Πρωινό",
-                      "Μεσημεριανό",
-                      "Βραδινό",
-                      "Σνακ",
-                      "Τροφοδοσία προπόνησης"
-                    ]
-                  },
-                  "calories": {
-                    "type": "number",
-                    "exclusiveMinimum": 0,
-                    "maximum": 100000
-                  },
-                  "protein": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10000
-                  },
-                  "carbs": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10000
-                  },
-                  "fat": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10000
-                  }
-                },
-                "required": [
-                  "request_id",
-                  "meal_id",
-                  "date",
-                  "name",
-                  "category",
-                  "calories",
-                  "protein",
-                  "carbs",
-                  "fat"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "request_id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "meal_id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  }
-                },
-                "required": [
-                  "request_id",
-                  "meal_id"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "request_id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "date": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "weight_kg": {
-                    "type": "number",
-                    "minimum": 20,
-                    "maximum": 500
-                  }
-                },
-                "required": [
-                  "request_id",
-                  "date",
-                  "weight_kg"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "request_id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "rest": {
-                    "type": "object",
-                    "properties": {
-                      "calories": {
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 100000
-                      },
-                      "protein": {
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 10000
-                      },
-                      "carbs": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 10000
-                      },
-                      "fat": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 10000
-                      }
-                    },
-                    "required": [
-                      "calories",
-                      "protein",
-                      "carbs",
-                      "fat"
-                    ],
-                    "additionalProperties": false
-                  },
-                  "training": {
-                    "type": "object",
-                    "properties": {
-                      "calories": {
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 100000
-                      },
-                      "protein": {
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 10000
-                      },
-                      "carbs": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 10000
-                      },
-                      "fat": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 10000
-                      }
-                    },
-                    "required": [
-                      "calories",
-                      "protein",
-                      "carbs",
-                      "fat"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "request_id",
-                  "rest",
-                  "training"
-                ],
-                "additionalProperties": false
-              }
-            ]
-          }
-        },
-        "required": [
-          "operation",
-          "payload"
-        ],
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false
-      },
-      "execution": {
-        "taskSupport": "forbidden"
-      }
-    },
-    {
-      "name": "getWriteDraft",
-      "description": "Check whether your own confirmation draft was approved in the dashboard.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "confirmation_id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          }
-        },
-        "required": [
-          "confirmation_id"
-        ],
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false
-      },
-      "execution": {
-        "taskSupport": "forbidden"
-      }
-    },
-    {
       "name": "addMeal",
-      "description": "Execute addMeal ONLY after explicit user confirmation and approval of the identical prepareWrite draft in the dashboard. Reuse request_id and confirmation_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Execute addMeal ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -476,11 +186,6 @@
             "type": "number",
             "minimum": 0,
             "maximum": 10000
-          },
-          "confirmation_id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
         "required": [
@@ -491,8 +196,7 @@
           "calories",
           "protein",
           "carbs",
-          "fat",
-          "confirmation_id"
+          "fat"
         ],
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false
@@ -509,7 +213,7 @@
     },
     {
       "name": "updateMeal",
-      "description": "Execute updateMeal ONLY after explicit user confirmation and approval of the identical prepareWrite draft in the dashboard. Reuse request_id and confirmation_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Execute updateMeal ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -561,11 +265,6 @@
             "type": "number",
             "minimum": 0,
             "maximum": 10000
-          },
-          "confirmation_id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
         "required": [
@@ -577,8 +276,7 @@
           "calories",
           "protein",
           "carbs",
-          "fat",
-          "confirmation_id"
+          "fat"
         ],
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false
@@ -595,7 +293,7 @@
     },
     {
       "name": "deleteMeal",
-      "description": "Execute deleteMeal ONLY after explicit user confirmation and approval of the identical prepareWrite draft in the dashboard. Reuse request_id and confirmation_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Execute deleteMeal ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -608,17 +306,11 @@
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "confirmation_id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
         "required": [
           "request_id",
-          "meal_id",
-          "confirmation_id"
+          "meal_id"
         ],
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false
@@ -635,7 +327,7 @@
     },
     {
       "name": "addWeight",
-      "description": "Execute addWeight ONLY after explicit user confirmation and approval of the identical prepareWrite draft in the dashboard. Reuse request_id and confirmation_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Execute addWeight ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -652,18 +344,12 @@
             "type": "number",
             "minimum": 20,
             "maximum": 500
-          },
-          "confirmation_id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
         "required": [
           "request_id",
           "date",
-          "weight_kg",
-          "confirmation_id"
+          "weight_kg"
         ],
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false
@@ -680,7 +366,7 @@
     },
     {
       "name": "updateNutritionTargets",
-      "description": "Execute updateNutritionTargets ONLY after explicit user confirmation and approval of the identical prepareWrite draft in the dashboard. Reuse request_id and confirmation_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Execute updateNutritionTargets ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -752,18 +438,12 @@
               "fat"
             ],
             "additionalProperties": false
-          },
-          "confirmation_id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
         "required": [
           "request_id",
           "rest",
-          "training",
-          "confirmation_id"
+          "training"
         ],
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false

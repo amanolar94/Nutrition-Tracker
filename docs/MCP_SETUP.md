@@ -23,6 +23,7 @@ In the existing Supabase project's SQL Editor, with `schema.sql` and
 
 - `supabase/migrations/20261014_mcp.sql`
 - `supabase/migrations/mcp_access_token_hook.sql`
+- `supabase/migrations/20261014_direct_mcp_writes.sql` (latest direct-write upgrade)
 
 The migration preserves meals/goals and existing user sign-in. Carbs/fat on old
 meals remain NULL (unknown), not invented nutritional values. The UI flags incomplete
@@ -34,8 +35,8 @@ Default training targets: 2700 kcal / 180 g protein / 320 g carbs / 78 g fat.
 Existing saved calorie/protein goals are preserved. Both target sets are editable.
 
 OAuth sessions can read only their user's rows, but cannot directly write meal,
-goal, weight or personal-key tables. Approved writes use a transaction RPC with
-explicit owner checks, locked confirmation rows and persisted retry results.
+goal, weight or personal-key tables. Direct writes use a transaction RPC with explicit owner checks and a locked,
+user-scoped request_id journal storing retry results. Old drafts remain archived.
 The existing personal-key REST Action remains add-only and separate from MCP.
 
 ## 2. Enable Supabase OAuth 2.1
@@ -122,27 +123,28 @@ must be enabled by the workspace owner. Code cannot modify an unavailable editor
 Update the existing plugin skill with `docs/plugin-instructions.md`: the old skill
 says carbs/fat cannot be saved, which is now obsolete. Keep the same plugin identity.
 The old REST GPT Action can remain for compatibility, but use MCP for this workflow
-so that approved-draft enforcement applies. Do not put a personal REST key in the
+for the direct-write tools and host confirmation safeguards. Do not put a personal REST key in the
 MCP connection.
 
-## 5. Confirmation workflow
+## 5. Confirmation workflow (single confirmation in ChatGPT)
 
-1. Discuss the food/photo and quantities in ChatGPT.
-2. Show estimated calories/protein/carbs/fat; ask for corrections.
-3. Wait for explicit confirmation, e.g. **καταχώρισέ το**.
-4. Call `prepareWrite` with operation and exact payload, including UUID request_id.
-5. User opens the existing dashboard, reviews the values and approves the draft.
-6. Check `getWriteDraft`, then call the corresponding write tool with the same
-   payload and `confirmation_id` returned by `prepareWrite`.
-7. Only a successful tool result means saved. Refresh the dashboard or return
-   to its tab to see the new data.
+1. Discuss food/photos and quantities; show calories/protein/carbs/fat and uncertainty.
+2. Ask for corrections and wait for explicit confirmation, e.g. **καταχώρισέ το**.
+3. Call the corresponding write tool directly with a fresh UUID request_id.
+4. On success the data is immediately saved. The dashboard updates on tab return
+   or refresh. There is no draft or website approval.
+5. Reuse the same request_id and identical content on retries. Changed content
+   with an existing request_id is rejected. Editing, deleting, weights and targets
+   require their own explicit confirmation too.
 
-This intentionally adds a browser confirmation step. A model-provided `confirmed:
-true` would not establish user approval. Only a direct website session can approve;
-OAuth clients cannot approve their own drafts. Drafts expire after 15 minutes.
-All writes use request_id; retries return the stored result, not a repeated mutation.
-Reusing a request_id with changed content fails. Delete/edit tools require a full
-confirmed draft too. Rejected or expired drafts cannot be executed.
+The host/model must enforce conversational confirmation. The server does not
+receive the conversation and cannot independently prove that a user said “save”.
+Write tools are marked readOnlyHint=false, destructiveHint=true,
+idempotentHint=true so the host can apply confirmation safeguards. The plugin
+instructions forbid writes during analysis and before explicit confirmation.
+Authentication, ownership, strict validation and request_id idempotency are still
+server/database-enforced. Do not claim conversational confirmation was verified
+by local protocol tests or by SQL.
 
 ## Tools and schemas
 
@@ -151,17 +153,16 @@ Full machine-readable input schemas and annotations: `docs/mcp-tools.json`
 
 | Tool | Input |
 | --- | --- |
-| addMeal | request_id, date, name, category, calories, protein, carbs, fat, confirmation_id |
+| addMeal | request_id, date, name, category, calories, protein, carbs, fat |
 | getMeals | date OR start_date + end_date |
 | getDailySummary | date |
-| updateMeal | request_id, meal_id, full meal fields, confirmation_id |
-| deleteMeal | request_id, meal_id, confirmation_id |
-| addWeight | request_id, date, weight_kg (20–500), confirmation_id |
+| getWeeklySummary | date (Monday–Sunday week containing it) |
+| updateMeal | request_id, meal_id, full meal fields |
+| deleteMeal | request_id, meal_id |
+| addWeight | request_id, date, weight_kg (20–500) |
 | getWeightHistory | date OR start_date + end_date |
 | getNutritionTargets | empty object |
-| updateNutritionTargets | request_id, rest, training, confirmation_id; each target set has calories/protein/carbs/fat |
-| prepareWrite | operation (one of the five write tools), payload (matching that tool, without confirmation_id) |
-| getWriteDraft | confirmation_id |
+| updateNutritionTargets | request_id, rest, training; each target set has calories/protein/carbs/fat |
 
 Categories preserve the existing Greek values: `Πρωινό`, `Μεσημεριανό`, `Βραδινό`,
 `Σνακ`, plus `Τροφοδοσία προπόνησης` for gels/drinks/other workout fuel. Fueling is
@@ -178,20 +179,21 @@ tokens or passwords into chat or logs.
 
 1. Request resource metadata and unauthenticated `/mcp`: valid metadata and 401
    with WWW-Authenticate are expected.
-2. Connect using the official MCP client or ChatGPT; initialize and list all 11 tools.
-3. Sign in to two test accounts. Verify each sees only its own meals, drafts,
+2. Connect using the official MCP client or ChatGPT; initialize and list all 10 tools.
+3. Sign in to two test accounts. Verify each sees only its own meals,
    weights and targets. Wrong-project/audience, expired, revoked and anonymous
    tokens must fail.
-4. Create an addMeal draft; attempt execution before approval (must fail), approve
-   in the dashboard, execute and check all four macro values in the dashboard.
-5. Repeat the same request_id and confirmation_id; verify only one row exists.
-6. Retrieve meal/date/range and daily summary; verify workout fuel counted once.
+4. Analyze/display a meal without invoking a write; verify no new row exists.
+   After explicit ChatGPT confirmation, call addMeal directly and verify all four
+   macros in getMeals and the dashboard, without any website approval.
+5. Repeat the same request_id; verify only one row exists. Reuse it with changed
+   content and verify rejection.
+6. Retrieve meals, daily/weekly summaries; verify workout fuel counted once.
 7. Confirm and execute updateMeal and deleteMeal; verify dashboard changes.
 8. Confirm weight and rest/training targets; verify dashboard and read tools.
-9. Change a draft payload, use another user's confirmation_id, or expire/reject a
-   draft; execution must fail. Verify an OAuth token cannot approve a draft or
-   directly write tables.
-10. Revoke the OAuth grant through the dashboard. Refresh/session access must fail.
+9. Anonymous writes and attempts to update/delete another user's meal must fail.
+   OAuth tokens still cannot directly write tables, only authenticated mutation RPCs.
+10. Revoke OAuth access from the dashboard; refreshed/session access must fail.
 
 Read-only deployed smoke check: `npm run mcp:verify-live`. It checks metadata and anonymous rejection. Authenticated discovery requires a test OAuth token supplied securely in MCP_TEST_ACCESS_TOKEN; this script never writes records or prints tokens. It does not replace the live write/isolation checklist.
 

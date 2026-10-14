@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import {chromium} from 'playwright';
-import {database,identity,prepare,execute,userA,meal} from '../tests/helpers/database.js';
-const db=await database();const port=5192;const origin=`http://127.0.0.1:${port}`;
+import {database,identity,userA,meal} from '../tests/helpers/database.js';
+const db=await database();await db.exec(await (await import('node:fs/promises')).readFile(new URL('../supabase/migrations/20261014_direct_mcp_writes.sql',import.meta.url),'utf8'));const port=5192;const origin=`http://127.0.0.1:${port}`;
 const vite=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(port),'--strictPort'],{cwd:new URL('..',import.meta.url),env:{...process.env,VITE_SUPABASE_URL:'https://nutrition-test.supabase.co',VITE_SUPABASE_PUBLISHABLE_KEY:'public-test-placeholder'},stdio:'ignore'});
 let browser;let legacyMode=false;
 try{
@@ -25,8 +25,9 @@ try{
  });
  await page.setViewportSize({width:320,height:844});await page.goto(origin);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.locator('[name=email]').fill('test@example.com');await page.locator('[name=password]').fill('test-password');await page.getByRole('button',{name:'Σύνδεση',exact:true}).click();await page.getByRole('heading',{name:'Χειροκίνητη καταχώριση'}).waitFor();await page.getByLabel('Ημερομηνία καταγραφής').fill('2026-10-14');
- async function confirm(operation,payload){await identity(db,userA);const draft=await prepare(db,operation,payload);await page.getByRole('button',{name:'Ανανέωση αιτημάτων'}).click();await page.getByRole('button',{name:'Επιβεβαίωση αλλαγής'}).click();await page.getByRole('button',{name:'Επιβεβαίωση αλλαγής'}).waitFor({state:'detached'});await page.getByText('Εγκρίθηκε. Επέστρεψε στο ChatGPT', {exact:false}).waitFor();await identity(db,userA);return execute(db,operation,payload,draft.confirmation_id);}
- const payload={...meal(),category:'Τροφοδοσία προπόνησης'};const saved=await confirm('addMeal',payload);await page.getByRole('button',{name:'Ανανέωση',exact:true}).click();await page.getByRole('heading',{name:'Γιαούρτι',exact:true}).waitFor();assert.equal(await page.locator('.stat strong').nth(2).innerText(),'30');assert.match(await page.locator('.fueling').innerText(),/300 kcal/);
+ async function confirm(operation,payload){await identity(db,userA);return(await db.query('select public.write_nutrition($1,$2::jsonb) as result',[operation,JSON.stringify(payload)])).rows[0].result;}
+ assert.equal(await page.getByRole('button',{name:'Επιβεβαίωση αλλαγής'}).count(),0);
+ const payload={...meal(),category:'Τροφοδοσία προπόνησης'};const saved=await confirm('addMeal',payload);await page.getByRole('button',{name:'Ανανέωση',exact:true}).click();await page.getByRole('heading',{name:'Γιαούρτι',exact:true}).waitFor();assert.equal(await page.locator('.stat strong').nth(2).innerText(),'30');assert.match(await page.locator('.fueling').innerText(),/300 kcal/);assert.match(await page.locator('.weekly').innerText(),/300 kcal/);
  for(const width of [320,375,390,768,1280]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`overflow at ${width}`);}
  const update={...meal(),meal_id:saved.id,name:'Updated via MCP',calories:450};await confirm('updateMeal',update);await page.getByRole('button',{name:'Ανανέωση',exact:true}).click();await page.getByRole('heading',{name:'Updated via MCP',exact:true}).waitFor();
  await confirm('addWeight',{request_id:meal().request_id,date:'2026-10-14',weight_kg:99.5});await page.getByRole('button',{name:'Ανανέωση',exact:true}).click();await page.getByText('99,5 kg',{exact:true}).waitFor();
@@ -34,5 +35,5 @@ try{
  await confirm('deleteMeal',{request_id:meal().request_id,meal_id:saved.id});await page.getByRole('button',{name:'Ανανέωση',exact:true}).click();await page.getByRole('heading',{name:'Μια νέα αρχή στο πιάτο σου'}).waitFor();
  await page.goto(origin+'/oauth/consent?authorization_id=test');await page.getByRole('heading',{name:'Nutrition Tracker test'}).waitFor();assert.equal(await page.getByRole('button',{name:'Έγκριση πρόσβασης'}).count(),1);
  legacyMode=true;await page.goto(origin);await page.getByText('Η αναβάθμιση MCP εκκρεμεί', {exact:false}).waitFor();assert.equal(await page.locator('input[name=calories]').count(),1);assert.equal(await page.locator('input[name=carbs]').count(),0);
- assert.deepEqual(errors,[]);console.log('PASS: actual PostgreSQL writes approved from browser, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.');
+ assert.deepEqual(errors,[]);console.log('PASS: direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.');
 }finally{await browser?.close();vite.kill('SIGTERM');await db.close();}
