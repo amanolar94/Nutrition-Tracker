@@ -1,0 +1,10 @@
+import React,{useEffect,useState} from 'react';
+import {supabase} from './backend.js';
+export default function OAuthConsent({user}){
+ const id=new URLSearchParams(window.location.search).get('authorization_id');
+ const [details,setDetails]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ function redirect(url){const dest=new URL(url);if(dest.protocol!=='https:'&&!(dest.protocol==='http:'&&['localhost','127.0.0.1'].includes(dest.hostname)))throw Error('Invalid redirect');window.location.assign(dest.href);}
+ useEffect(()=>{let active=true;if(!id){setError('Λείπει το αίτημα εξουσιοδότησης. Ξεκίνα τη σύνδεση από το ChatGPT.');return;}supabase.auth.oauth.getAuthorizationDetails(id).then(({data,error})=>{if(!active)return;if(error)throw error;if(data?.redirect_url){redirect(data.redirect_url);return;}setDetails(data);}).catch(()=>{if(active)setError('Το αίτημα εξουσιοδότησης δεν είναι διαθέσιμο ή έχει λήξει. Ξεκίνα ξανά από το ChatGPT.');});return()=>{active=false;};},[id]);
+ async function decide(approve){setBusy(true);try{const {data,error}=await (approve?supabase.auth.oauth.approveAuthorization(id,{skipBrowserRedirect:true}):supabase.auth.oauth.denyAuthorization(id,{skipBrowserRedirect:true}));if(error||!data?.redirect_url)throw error||Error('Missing redirect');redirect(data.redirect_url);}catch{setError('Η εξουσιοδότηση απέτυχε. Δοκίμασε ξανά.');setBusy(false);}}
+ return <main className="auth"><section className="panel"><h1>Σύνδεση Nutrition Tracker</h1><p>{user.email}</p>{error?<p role="alert">{error}</p>:!details?<p role="status">Φόρτωση αιτήματος…</p>:<><h2>{details.client?.name||details.client?.client_name||'Εξωτερική εφαρμογή'}</h2><p>Η εφαρμογή ζητά πρόσβαση στα δικά σου γεύματα, σύνολα, βάρη και στόχους. Οι αλλαγές MCP απαιτούν ξεχωριστή έγκριση του ακριβούς draft στο dashboard.</p><p className="muted">Scopes: {details.scope||'Δεν αναφέρονται'}</p><div className="pair"><button disabled={busy} onClick={()=>decide(false)}>Απόρριψη</button><button disabled={busy} onClick={()=>decide(true)}>Έγκριση πρόσβασης</button></div></>}</section></main>;
+}

@@ -1,0 +1,10 @@
+import {writeFile} from 'node:fs/promises';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {makeMcpServer} from '../server/mcp-server.js';
+const [clientTransport,serverTransport]=InMemoryTransport.createLinkedPair();
+const server=makeMcpServer({});const client=new Client({name:'schema-export',version:'1.0.0'});
+await server.connect(serverTransport);await client.connect(clientTransport);
+await writeFile(new URL('../docs/mcp-tools.json',import.meta.url),JSON.stringify(await client.listTools(),null,2)+'\n');
+await client.close();await server.close();
+console.log('Exported docs/mcp-tools.json');

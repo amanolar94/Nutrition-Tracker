@@ -66,7 +66,8 @@
                       "Πρωινό",
                       "Μεσημεριανό",
                       "Βραδινό",
-                      "Σνακ"
+                      "Σνακ",
+                      "Τροφοδοσία προπόνησης"
                     ]
                   },
                   "calories": {
@@ -78,6 +79,16 @@
                     "type": "number",
                     "minimum": 0,
                     "description": "Total grams of protein for the whole meal."
+                  },
+                  "carbs": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Total grams of carbohydrate; omit if unknown."
+                  },
+                  "fat": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Total grams of fat; omit if unknown."
                   }
                 }
               }

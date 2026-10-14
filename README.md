@@ -50,3 +50,11 @@ npm run build
 Η βάση επιλέγει τον ιδιοκτήτη από το έγκυρο προσωπικό κλειδί, όχι από user_id του GPT. Το endpoint δεν καταγράφει tokens ή request bodies. Κάθε γεύμα έχει request_id ώστε επανάληψη της ίδιας αίτησης να μην δημιουργεί διπλό γεύμα. Το κλειδί δίνει δικαίωμα προσθήκης γευμάτων, γι' αυτό κράτησέ το ιδιωτικό.
 
 Πριν θεωρηθεί ενεργή η σύνδεση: έλεγξε πραγματική καταχώριση, επανάληψη με ίδιο request_id, δύο διαφορετικά accounts/keys, ληγμένο και ανακλημένο κλειδί. Τα automated API tests χρησιμοποιούν mock database και δεν αντικαθιστούν αυτούς τους ελέγχους στο Supabase.
+
+## Remote MCP στο ίδιο site
+
+Το `/mcp` χρησιμοποιεί official MCP SDK / stateless Streamable HTTP και Supabase OAuth 2.1. Περιλαμβάνει γεύματα με όλα τα macros, τροφοδοσία προπόνησης, βάρος και στόχους ανάπαυσης/προπόνησης. Οι εγγραφές MCP απαιτούν ρητή επιβεβαίωση στο ChatGPT και έγκριση του ακριβούς draft στο υπάρχον dashboard.
+
+Ακριβή βήματα migration/OAuth/Vercel/σύνδεσης του **υπάρχοντος** plugin και live acceptance checks: [docs/MCP_SETUP.md](docs/MCP_SETUP.md). Input schemas: [docs/mcp-tools.json](docs/mcp-tools.json). Ενημερωμένες οδηγίες του υπάρχοντος plugin: [docs/plugin-instructions.md](docs/plugin-instructions.md).
+
+Εφάρμοσε τη νέα migration για να ενεργοποιηθούν τα νέα macros/βάρη/MCP. Μέχρι τότε το dashboard χρησιμοποιεί τα παλιά queries και διατηρεί login, γεύματα και στόχους θερμίδων/πρωτεΐνης. Οι τοπικοί έλεγχοι δεν επιβεβαιώνουν πραγματική σύνδεση ChatGPT/Supabase OAuth.

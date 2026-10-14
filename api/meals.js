@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-const categories = new Set(['Πρωινό','Μεσημεριανό','Βραδινό','Σνακ']);
+const categories = new Set(['Πρωινό','Μεσημεριανό','Βραδινό','Σνακ','Τροφοδοσία προπόνησης']);
 export function validActionMeal(m) {
  if (!m || typeof m !== 'object' || Array.isArray(m)) return false;
  if (typeof m.request_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(m.request_id)) return false;
  if (typeof m.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(m.date)) return false;
  const date=new Date(m.date+'T00:00:00Z');
  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==m.date) return false;
- return typeof m.name==='string' && m.name.trim().length>0 && m.name.trim().length<=120 && categories.has(m.category) && Number.isFinite(m.calories) && m.calories>0 && Number.isFinite(m.protein) && m.protein>=0;
+ return typeof m.name==='string' && m.name.trim().length>0 && m.name.trim().length<=120 && categories.has(m.category) && Number.isFinite(m.calories) && m.calories>0 && Number.isFinite(m.protein) && m.protein>=0 && [m.carbs,m.fat].every(v=>v==null||(Number.isFinite(v)&&v>=0));
 }
 // Injectable dependency supports tests without credentials or a live database.
 export function makeHandler(getClient = () => {
@@ -24,7 +24,10 @@ export function makeHandler(getClient = () => {
  if(!validActionMeal(meal))return res.status(400).json({error:'invalid_meal'});
  try {
  const client=getClient();if(!client)return res.status(503).json({error:'service_not_configured'});
- const {data,error}=await client.rpc('add_chatgpt_meal',{p_token:auth.slice(7),p_request_id:meal.request_id,p_date:meal.date,p_name:meal.name.trim(),p_category:meal.category,p_calories:meal.calories,p_protein:meal.protein});
+ let {data,error}=await client.rpc('add_chatgpt_meal_v2',{p_token:auth.slice(7),p_request_id:meal.request_id,p_date:meal.date,p_name:meal.name.trim(),p_category:meal.category,p_calories:meal.calories,p_protein:meal.protein,p_carbs:meal.carbs??null,p_fat:meal.fat??null});
+ if(error&&['PGRST202','42883'].includes(error.code)&&meal.carbs==null&&meal.fat==null&&meal.category!=='Τροφοδοσία προπόνησης'){
+ const legacy=await client.rpc('add_chatgpt_meal',{p_token:auth.slice(7),p_request_id:meal.request_id,p_date:meal.date,p_name:meal.name.trim(),p_category:meal.category,p_calories:meal.calories,p_protein:meal.protein});data=legacy.data;error=legacy.error;
+ }
  if(error){if(error.code==='28000')return res.status(401).json({error:'invalid_or_expired_action_key'});if(['22023','23514','22007','22008'].includes(error.code))return res.status(400).json({error:'invalid_meal'});return res.status(503).json({error:'meal_storage_unavailable'});}
  return res.status(200).json({meal:data});
  }catch{return res.status(503).json({error:'meal_storage_unavailable'});}

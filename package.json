@@ -6,7 +6,10 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test"
+    "test": "node --test",
+    "test:browser": "node scripts/browser-smoke.mjs",
+    "mcp:schemas": "node scripts/export-mcp-tools.mjs",
+    "mcp:verify-live": "node scripts/verify-deployed-mcp.mjs"
   },
   "repository": {
     "type": "git",
@@ -21,11 +24,16 @@
   },
   "homepage": "https://github.com/amanolar94/Nutrition-Tracker#readme",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@supabase/supabase-js": "^2.117.3",
+    "jose": "^6.2.12",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.9",
+    "playwright": "^1.64.0",
     "vite": "^8.3.4"
   },
   "private": true
