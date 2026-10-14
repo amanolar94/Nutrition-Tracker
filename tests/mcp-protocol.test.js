@@ -42,3 +42,9 @@ test('ranges and summary include fueling once and flag unknown legacy macros',()
  assert.equal(writes.addMeal.safeParse({request_id:uid,date:'2026-10-14',name:'test',category:'Πρωινό',calories:10,protein:2}).success,false);
  const s=summarizeMeals([{calories:100,protein:5,carbs:null,fat:null,category:'Σνακ'},{calories:200,protein:0,carbs:50,fat:0,category:'Τροφοδοσία προπόνησης'}],'2026-10-14');assert.equal(s.totals.calories,300);assert.equal(s.workout_fueling.calories,200);assert.equal(s.totals.carbs,50);assert.equal(s.incomplete_macro_records,1);
 });
+
+test('public status reports actual SDK-discovered schema without exposing data or authenticating',async()=>{
+ const handler=makeHandler(async()=>{throw Error('Status must not call authentication');});let body;const res={headers:{},setHeader(k,v){this.headers[k]=v;},end(v){body=JSON.parse(v);}};
+ await handler({method:'GET',headers:{},query:{status:'1'}},res);
+ assert.equal(res.statusCode,200);assert.equal(res.headers['Cache-Control'],'no-store');assert.equal(body.server_version,'3.0.0');assert.equal(body.tool_count,10);assert.equal(body.dashboard_approval_required,false);assert.equal(body.tools.some(t=>t.name==='prepareWrite'),false);assert.equal(body.tools.find(t=>t.name==='addMeal').required.includes('confirmation_id'),false);assert.equal(Object.hasOwn(body,'meals'),false);
+});
