@@ -17,7 +17,9 @@ Deploy the same repository through the existing Vercel project. `/api/meals`
 returns **410 Gone** without inspecting credentials/payloads or accessing storage.
 It does not redirect old writes to MCP. The old public Action schema has no
 operations, and its instructions direct users to the existing OAuth MCP connection.
-The site offers no new-key creation; owners can still delete old key metadata.
+The site no longer shows personal-key controls or requests key metadata. Existing
+owner-only SELECT/DELETE table permissions are retained for administrative cleanup.
+Current app access can be revoked under Account → Connected apps.
 
 The migration preserves meals, workouts, weights, goals, maintenance settings,
 personal-key hashes, mutation receipts and OAuth configuration. It does not change
@@ -46,7 +48,7 @@ whole Supabase project is free from security issues.
 Tests use PostgreSQL/PGlite with Supabase-compatible roles and claims, the official
 MCP SDK and Chromium with a simulated Supabase HTTP bridge. They cover 410 without
 storage access, legacy RPC denial even with valid keys, prevention of key creation,
-owner-only key cleanup, preserved records/receipts, anonymous rejection, per-user
+owner-only database cleanup, preserved records/receipts, anonymous rejection, per-user
 isolation and working MCP meal/workout workflows and dashboard updates after the
 retirement migration. The older grant test verifies historical SQL behavior before
 retirement; current behavior is covered in `retire-personal-keys.test.js`.

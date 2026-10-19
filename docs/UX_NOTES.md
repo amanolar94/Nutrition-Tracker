@@ -24,7 +24,9 @@ from this cloud environment during the task.
   updated server data to avoid overwriting changes from another device.
 - Refresh feedback, readable full macro names, 44px touch targets, native focus-trapped
   dialogs, keyboard tab navigation, skip link, and reduced-motion handling improve
-  accessibility. Credential/setup controls are in Settings, away from daily results.
+  accessibility. Connected app access lives in Settings → Account. The old ChatGPT
+  instruction card and retired personal-key controls are removed; only current app
+  connections and their access-removal action are shown.
 
 No SQL migration, MCP tool schema or authentication configuration changes are needed.
 
@@ -32,5 +34,6 @@ Verification: npm test; npm run build; npm run test:browser. Browser tests use r
 PostgreSQL fixtures behind a simulated Supabase HTTP bridge, not live personal data.
 They exercise all four views at 320/375/390/768/1280, keyboard navigation, calendar
 changes, week drilldown, canceling dialogs without writes, manual persistence/deletion,
-MCP record refresh, weights/targets and unsaved-goal preservation. Optional screenshots:
+MCP record refresh, weights/targets, unsaved-goal preservation and connected-app
+revocation (including failure/retry). Optional screenshots:
 NUTRITION_SCREENSHOT_DIR=/tmp/nutrition-ux npm run test:browser.

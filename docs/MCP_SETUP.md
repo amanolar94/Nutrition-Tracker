@@ -46,7 +46,8 @@ goal, weight or personal-key tables. Direct writes use a transaction RPC with ex
 user-scoped request_id journal storing retry results. Old drafts remain archived.
 The old personal-key REST Action has been retired. `/api/meals` returns HTTP 410;
 the final migration revokes legacy RPC execution and key creation, preserving
-stored data. Existing key metadata can still be viewed/deleted by its owner.
+stored data. Owner-only database permissions for historical key metadata remain;
+the dashboard shows only current app connections under Account → Connected apps.
 Do not rerun the older grant migrations after the retirement migration.
 
 ## 2. Enable Supabase OAuth 2.1

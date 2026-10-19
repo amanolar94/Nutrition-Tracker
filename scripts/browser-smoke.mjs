@@ -68,6 +68,14 @@ let browser;
 let legacyMode = false;
 let energyLegacyMode = false;
 let loseNextWorkoutResponse = false;
+const connectedClientId = "33333333-3333-4333-8333-333333333333";
+let oauthGrants = [
+  { client: { id: connectedClientId, name: "Nutrition Tracker" } },
+];
+let failNextRevoke = true;
+let revokedClientId = null;
+let legacyKeyRequests = 0;
+
 try {
   for (let i = 0; i < 100; i++) {
     try {
@@ -105,8 +113,20 @@ try {
             aud: "authenticated",
           },
         };
-      else if (url.pathname.endsWith("/user/oauth/grants")) body = [];
-      else if (url.pathname.includes("/auth/v1/oauth/authorizations/")) {
+      else if (url.pathname.endsWith("/user/oauth/grants")) {
+        if (req.method() === "DELETE") {
+          assert.equal(url.searchParams.get("client_id"), connectedClientId);
+          if (failNextRevoke) {
+            failNextRevoke = false;
+            status = 500;
+            body = { message: "Simulated revocation failure" };
+          } else {
+            revokedClientId = connectedClientId;
+            oauthGrants = [];
+            body = {};
+          }
+        } else body = oauthGrants;
+      } else if (url.pathname.includes("/auth/v1/oauth/authorizations/")) {
         body = {
           authorization_id: "test",
           scope: "openid email",
@@ -136,6 +156,7 @@ try {
         }
         await identity(db, userA, false);
         const table = url.pathname.split("/").at(-1);
+        if (table === "chatgpt_keys") legacyKeyRequests++;
         if (url.pathname.endsWith("/rpc/write_nutrition")) {
           const args = JSON.parse(req.postData());
           body = (
@@ -489,20 +510,60 @@ try {
       .count(),
     0,
   );
-  await page.getByText("Παλιά κλειδιά σύνδεσης", { exact: true }).click();
-  await page
-    .getByRole("button", {
-      name: "Διαγραφή παλιού κλειδιού Παλιό δοκιμαστικό κλειδί",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByText("Το παλιό κλειδί διαγράφηκε.", { exact: true })
-    .waitFor();
   assert.equal(
-    (await db.query("select id from public.chatgpt_keys")).rows.length,
+    await page.getByText("Παλιά κλειδιά σύνδεσης", { exact: true }).count(),
     0,
   );
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Καταγραφή μέσω ChatGPT", exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(legacyKeyRequests, 0);
+  assert.equal(
+    (await db.query("select id from public.chatgpt_keys")).rows.length,
+    1,
+  );
+  const connections = page.locator("#account-settings .connections");
+  await connections.locator("summary").click();
+  const revoke = connections.getByRole("button", {
+    name: "Αφαίρεση πρόσβασης Nutrition Tracker",
+    exact: true,
+  });
+  await revoke.waitFor();
+  for (const width of [320, 375, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      true,
+      `connections overflow at ${width}`,
+    );
+  }
+  if (process.env.NUTRITION_SCREENSHOT_DIR) {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await page
+      .locator("#account-settings")
+      .screenshot({
+        path:
+          process.env.NUTRITION_SCREENSHOT_DIR +
+          "/account-connections-mobile.png",
+      });
+  }
+
+  await revoke.click();
+  await connections
+    .getByText("Δεν αφαιρέθηκε η πρόσβαση. Δοκίμασε ξανά.", { exact: true })
+    .waitFor();
+  assert.equal(await revoke.count(), 1);
+  await revoke.click();
+  await connections
+    .getByText("Η πρόσβαση της εφαρμογής αφαιρέθηκε.", { exact: true })
+    .waitFor();
+  assert.equal(await revoke.count(), 0);
+  assert.equal(revokedClientId, connectedClientId);
   await page.locator("input[name=rest_calories]").fill("2300");
   await confirm("updateNutritionTargets", {
     request_id: meal().request_id,
@@ -654,7 +715,7 @@ try {
   assert.equal(await page.locator("input[name=carbs]").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: retired key UI and cleanup with MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
+    "PASS: simplified account connections, grant revocation failure/retry, no legacy key controls/requests, MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
   );
 } finally {
   await browser?.close();

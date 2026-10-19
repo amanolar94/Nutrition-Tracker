@@ -872,38 +872,15 @@ details summary {
   min-height: 44px;
   align-content: center;
 }
-.chatgpt {
-  margin-top: 20px;
-  margin-bottom: 0;
-  padding: 16px;
-  background: #f8faf8;
+.connections {
+  margin: 0 0 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
-.chatgpt p {
-  line-height: 1.7;
-}
-.chatgpt a {
-  font-size: 13px;
+.connections .grant > span {
+  min-width: 0;
   overflow-wrap: anywhere;
-}
-.token {
-  margin-top: 20px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.token label,
-.token p {
-  width: 100%;
-}
-.token input {
-  font-family: monospace;
-}
-.chatgpt li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-top: 20px;
 }
 .grant {
   display: flex;

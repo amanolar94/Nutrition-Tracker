@@ -12,7 +12,6 @@ import {
 import { metrics, categories, dateLabel, number } from "./display.js";
 import { summarizeWeek } from "./summaries.js";
 import Auth from "./Auth.jsx";
-import LegacyActionKeys from "./ChatGPTConnection.jsx";
 import OAuthConsent from "./OAuthConsent.jsx";
 import OAuthConnections from "./OAuthConnections.jsx";
 import Navigation, { initialView } from "./components/Navigation.jsx";
@@ -397,22 +396,6 @@ function App({ user, initial }) {
                 busy={disabled}
                 onSave={saveGoals}
               />
-              {view === "settings" && (
-                <section className="panel">
-                  <h2>Καταγραφή μέσω ChatGPT</h2>
-                  <p className="muted">
-                    Περιέγραψε το γεύμα σου, έλεγξε τις εκτιμήσεις και πες
-                    «καταχώρισέ το». Μόλις αποθηκευτεί, εμφανίζεται στο
-                    ημερολόγιο.
-                  </p>
-                  <p className="data-note">
-                    Οι ημερομηνίες του ημερολογίου ακολουθούν τη ζώνη ώρας
-                    Europe/Athens.
-                  </p>
-                  <OAuthConnections />
-                  <LegacyActionKeys userId={user.id} />
-                </section>
-              )}
             </div>
             <section id="account-settings" className="panel account-panel">
               <p className="eyebrow">ΛΟΓΑΡΙΑΣΜΟΣ</p>
@@ -423,6 +406,7 @@ function App({ user, initial }) {
                 διαθέσιμα από κάθε συσκευή.
               </p>
               <a href="/privacy.html">Πληροφορίες απορρήτου</a>
+              {view === "settings" && <OAuthConnections />}
               <button className="secondary" disabled={busy} onClick={logout}>
                 Αποσύνδεση
               </button>
