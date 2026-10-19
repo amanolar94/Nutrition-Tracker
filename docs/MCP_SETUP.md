@@ -25,11 +25,16 @@ In the existing Supabase project's SQL Editor, with `schema.sql` and
 - `supabase/migrations/mcp_access_token_hook.sql`
 - `supabase/migrations/20261014_direct_mcp_writes.sql`
 - `supabase/migrations/20261019_workout_energy.sql` (workouts and energy balance)
+- `supabase/migrations/20261019_function_privileges.sql` (remove redundant legacy-function grants)
 
 The migration preserves meals/goals and existing user sign-in. Carbs/fat on old
 meals remain NULL (unknown), not invented nutritional values. The UI flags incomplete
 macro totals. There is no fabricated 100 kg measurement; 100 kg is the initial
 reference, and actual weight history starts with confirmed entries.
+
+For Security Advisor function warnings and the separate leaked-password Auth
+setting, see [SECURITY_ADVISOR.md](SECURITY_ADVISOR.md). Some SECURITY DEFINER
+grants are intentional and required for the supported authentication paths.
 
 Default rest targets: 2200 kcal / 180 g protein / 220 g carbs / 67 g fat.
 Default training targets: 2700 kcal / 180 g protein / 320 g carbs / 78 g fat.
