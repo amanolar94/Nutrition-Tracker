@@ -34,7 +34,7 @@
     },
     {
       "name": "getDailySummary",
-      "description": "Daily totals for calories, protein, carbs and fat, with workout fueling and missing legacy macro counts.",
+      "description": "Daily macros, fueling and estimated energy balance: food minus (maintenance excluding exercise + logged active workout calories). Negative balance means deficit. Based on logged records, not guaranteed complete. Null balance when maintenance is unset, no meals exist, or date is in the future. setup_required means the energy migration is pending.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -61,7 +61,7 @@
     },
     {
       "name": "getWeeklySummary",
-      "description": "Monday–Sunday summary of the week containing date, with daily breakdown, all macros, daily averages and workout fueling included once.",
+      "description": "Monday–Sunday macros, fueling and estimated energy balance with daily breakdown. Balance includes only non-future days with logged meals and configured maintenance. Report included_days, excluded_dates and partial coverage, never treat unlogged days as zero intake. Historical balances use the current maintenance setting.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -73,6 +73,38 @@
         "required": [
           "date"
         ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "getWorkouts",
+      "description": "Read workouts and active exercise calories for one date or inclusive range. Multiple workouts per date are supported. Workout fueling is food intake, not calories burned.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "start_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false
       },
@@ -120,7 +152,7 @@
     },
     {
       "name": "getNutritionTargets",
-      "description": "Read editable rest-day and training-day targets.",
+      "description": "Read editable rest-day/training-day intake targets and energy_settings.maintenance_calories (daily maintenance excluding logged exercise, null until explicitly set). Intake targets are not maintenance.",
       "inputSchema": {
         "type": "object",
         "properties": {},
@@ -139,7 +171,7 @@
     },
     {
       "name": "addMeal",
-      "description": "Execute addMeal ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Save the confirmed meal with macros for the total portion consumed. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -213,7 +245,7 @@
     },
     {
       "name": "updateMeal",
-      "description": "Execute updateMeal ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Replace a meal; retrieve it first and confirm all final fields. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -293,7 +325,7 @@
     },
     {
       "name": "deleteMeal",
-      "description": "Execute deleteMeal ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Permanently delete the specified meal from the signed-in account. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -327,7 +359,7 @@
     },
     {
       "name": "addWeight",
-      "description": "Execute addWeight ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Record weight in kg; replaces any existing measurement for the same date. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -366,7 +398,7 @@
     },
     {
       "name": "updateNutritionTargets",
-      "description": "Execute updateNutritionTargets ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id on retries. Full replacement fields are required for updateMeal.",
+      "description": "Update rest/training intake goals. These are not maintenance expenditure. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -444,6 +476,180 @@
           "request_id",
           "rest",
           "training"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "addWorkout",
+      "description": "Log active exercise calories only, excluding resting energy. Supports multiple workouts per day. Never use total daily burn or workout fueling as exercise calories. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "calories_burned": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "description": "Active exercise kcal only, excluding resting energy during the workout; not total daily expenditure."
+          }
+        },
+        "required": [
+          "request_id",
+          "date",
+          "name",
+          "calories_burned"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "updateWorkout",
+      "description": "Replace a workout; retrieve it first and confirm full date, name and active exercise calories. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "workout_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "calories_burned": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "description": "Active exercise kcal only, excluding resting energy during the workout; not total daily expenditure."
+          }
+        },
+        "required": [
+          "request_id",
+          "workout_id",
+          "date",
+          "name",
+          "calories_burned"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "deleteWorkout",
+      "description": "Permanently delete a workout; its burned calories are removed from the energy balance. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "workout_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "request_id",
+          "workout_id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "updateEnergySettings",
+      "description": "Set daily maintenance excluding separately logged exercise, or null to clear it. Not BMR, intake target, or exercise-inclusive TDEE. This recalculates historical balances with the new baseline. Never infer this from intake goals. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "maintenance_calories": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 500,
+                "maximum": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimated daily maintenance kcal including normal activity but EXCLUDING separately logged workouts. Not BMR, intake target, or exercise-inclusive TDEE. Null clears the estimate. Changing this recalculates all historical balances."
+          }
+        },
+        "required": [
+          "request_id",
+          "maintenance_calories"
         ],
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false

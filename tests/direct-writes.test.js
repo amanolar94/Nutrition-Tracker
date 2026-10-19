@@ -2,9 +2,9 @@ import test from 'node:test';import assert from 'node:assert/strict';import {rea
 import {database,identity,userA,userB,meal} from './helpers/database.js';
 import {databaseClient} from './helpers/client.js';import {nutritionService} from '../server/nutrition-service.js';
 import {summarizeWeek} from '../src/summaries.js';
-export async function directDatabase(){const db=await database();await db.exec(await readFile(new URL('../supabase/migrations/20261014_direct_mcp_writes.sql',import.meta.url),'utf8'));return db;}
+export async function directDatabase(){const db=await database();await db.exec(await readFile(new URL('../supabase/migrations/20261014_direct_mcp_writes.sql',import.meta.url),'utf8'));await db.exec(await readFile(new URL('../supabase/migrations/20261019_workout_energy.sql',import.meta.url),'utf8'));return db;}
 test('direct confirmed writes, no draft required, all macros/fueling, reads, ownership and idempotency',async()=>{const db=await directDatabase();try{
- await db.exec(await readFile(new URL('../supabase/migrations/20261014_direct_mcp_writes.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/migrations/20261019_workout_energy.sql',import.meta.url),'utf8'));
  const a=nutritionService(databaseClient(db,userA),userA),b=nutritionService(databaseClient(db,userB),userB);const input={...meal(),category:'Τροφοδοσία προπόνησης'};
  // Analyze/display a meal without invoking a write: no database changes.
  assert.deepEqual(await a.getMeals({date:input.date}),[]);

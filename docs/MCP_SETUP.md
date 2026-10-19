@@ -23,7 +23,8 @@ In the existing Supabase project's SQL Editor, with `schema.sql` and
 
 - `supabase/migrations/20261014_mcp.sql`
 - `supabase/migrations/mcp_access_token_hook.sql`
-- `supabase/migrations/20261014_direct_mcp_writes.sql` (latest direct-write upgrade)
+- `supabase/migrations/20261014_direct_mcp_writes.sql`
+- `supabase/migrations/20261019_workout_energy.sql` (workouts and energy balance)
 
 The migration preserves meals/goals and existing user sign-in. Carbs/fat on old
 meals remain NULL (unknown), not invented nutritional values. The UI flags incomplete
@@ -161,7 +162,12 @@ Full machine-readable input schemas and annotations: `docs/mcp-tools.json`
 | deleteMeal | request_id, meal_id |
 | addWeight | request_id, date, weight_kg (20–500) |
 | getWeightHistory | date OR start_date + end_date |
-| getNutritionTargets | empty object |
+| getNutritionTargets | empty object; includes energy_settings.maintenance_calories |
+| getWorkouts | date OR start_date + end_date |
+| addWorkout | request_id, date, name, calories_burned (active exercise kcal, >0 and ≤20,000) |
+| updateWorkout | request_id, workout_id, date, name, calories_burned |
+| deleteWorkout | request_id, workout_id |
+| updateEnergySettings | request_id, maintenance_calories (500–10,000 or null); excludes logged exercise |
 | updateNutritionTargets | request_id, rest, training; each target set has calories/protein/carbs/fat |
 
 Categories preserve the existing Greek values: `Πρωινό`, `Μεσημεριανό`, `Βραδινό`,
@@ -172,6 +178,10 @@ Read ranges are inclusive, at most 366 days and 1000 records. Narrow larger quer
 `addWeight` upserts the user's measurement for the date, rather than storing duplicates.
 Writes have readOnlyHint=false, destructiveHint=true, idempotentHint=true.
 
+Workout setup, energy balance semantics and additional acceptance checks:
+[WORKOUT_ENERGY.md](WORKOUT_ENERGY.md). Maintenance is unset until explicitly saved;
+the user-provided 2000 kcal is a form proposal. Food goals are not maintenance.
+
 ## 6. Required live acceptance checks
 
 Use a dedicated **test account**, not existing personal meal history. Do not paste
@@ -179,7 +189,7 @@ tokens or passwords into chat or logs.
 
 1. Request resource metadata and unauthenticated `/mcp`: valid metadata and 401
    with WWW-Authenticate are expected.
-2. Connect using the official MCP client or ChatGPT; initialize and list all 10 tools.
+2. Connect using the official MCP client or ChatGPT; initialize and list all 15 tools.
 3. Sign in to two test accounts. Verify each sees only its own meals,
    weights and targets. Wrong-project/audience, expired, revoked and anonymous
    tokens must fail.

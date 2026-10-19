@@ -1,10 +1,16 @@
 import React from "react";
 import { metrics, number, dateLabel } from "../display.js";
-export default function WeeklyView({ weekly, onDay }) {
+import EnergyBalance from "./EnergyBalance.jsx";
+export default function WeeklyView({ weekly, onDay, onSettings }) {
   const max = Math.max(1, ...weekly.daily.map((d) => d.totals.calories)),
     recorded = weekly.daily.filter((d) => d.meal_count > 0).length;
   return (
     <>
+      <EnergyBalance
+        energy={weekly.energy_balance}
+        weekly
+        onSettings={onSettings}
+      />
       <section className="panel weekly">
         <div className="section-title">
           <div>
@@ -37,6 +43,42 @@ export default function WeeklyView({ weekly, onDay }) {
             ελλιπή.
           </p>
         )}
+      </section>
+      <section className="panel weekly-balances">
+        <h2>Ισοζύγιο ανά ημέρα</h2>
+        <p className="muted">
+          Φαγητό, ενεργές θερμίδες προπόνησης και εκτίμηση ισοζυγίου.
+        </p>
+        <ul>
+          {weekly.daily.map((d) => (
+            <li key={d.date}>
+              <button className="balance-day" onClick={() => onDay(d.date)}>
+                <span>
+                  <b>
+                    {dateLabel(d.date, {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "numeric",
+                    })}
+                  </b>
+                  <small>
+                    Φαγητό {d.meal_count ? number(d.totals.calories) : "—"} ·
+                    Προπόνηση {number(d.energy_balance.workout_calories)} kcal
+                  </small>
+                </span>
+                <strong>
+                  {d.energy_balance.balance_calories === null
+                    ? "—"
+                    : `${d.energy_balance.balance_calories > 0 ? "+" : ""}${number(d.energy_balance.balance_calories)} kcal`}
+                </strong>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="data-note">
+          Αρνητικό: εκτιμώμενο έλλειμμα · Θετικό: εκτιμώμενο πλεόνασμα. «—»: η
+          ημέρα δεν συμμετέχει στον υπολογισμό.
+        </p>
       </section>
       <section className="panel weekly-chart">
         <h2>Θερμίδες ανά ημέρα</h2>

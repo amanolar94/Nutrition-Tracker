@@ -7,6 +7,7 @@ import {
   deleteMeal,
   updateGoals,
   loadDiary,
+  writeEnergy,
 } from "./backend.js";
 import { metrics, categories, dateLabel, number } from "./display.js";
 import { summarizeWeek } from "./summaries.js";
@@ -22,6 +23,9 @@ import ProgressView from "./components/ProgressView.jsx";
 import GoalEditor from "./components/GoalEditor.jsx";
 import Dialog from "./components/Dialog.jsx";
 import Icon from "./components/Icons.jsx";
+import EnergySettings from "./components/EnergySettings.jsx";
+import WorkoutEditor from "./components/WorkoutEditor.jsx";
+import { dailyEnergy } from "./energy.js";
 import "./style.css";
 const titles = {
   day: "Ημερήσια εικόνα",
@@ -32,7 +36,15 @@ const titles = {
 function App({ user, initial }) {
   const [meals, setMeals] = useState(initial.meals),
     [goals, setGoals] = useState(initial.goals),
-    [weights, setWeights] = useState(initial.weights || []);
+    [weights, setWeights] = useState(initial.weights || []),
+    [workouts, setWorkouts] = useState(initial.workouts || []),
+    [energySettings, setEnergySettings] = useState(
+      initial.energySettings || { maintenance_calories: null },
+    ),
+    [energyMigrationPending, setEnergyMigrationPending] = useState(
+      initial.energyMigrationPending || false,
+    ),
+    [workoutEditor, setWorkoutEditor] = useState(null);
   const [date, setDate] = useState(localDate()),
     [dayType, setDayType] = useState("rest"),
     [view, setView] = useState(initialView);
@@ -55,6 +67,9 @@ function App({ user, initial }) {
     setMeals(next.meals);
     setGoals(next.goals);
     setWeights(next.weights || []);
+    setWorkouts(next.workouts || []);
+    setEnergySettings(next.energySettings || { maintenance_calories: null });
+    setEnergyMigrationPending(next.energyMigrationPending || false);
     setLastSync(new Date());
   }
   function navigate(next) {
@@ -188,13 +203,53 @@ function App({ user, initial }) {
       setBusy(false);
     }
   }
+  async function saveEnergy(operation, payload) {
+    if (busy || refreshing || energyMigrationPending) return false;
+    ++readVersion.current;
+    setBusy(true);
+    try {
+      const result = await writeEnergy(operation, payload);
+      if (operation === "updateEnergySettings") setEnergySettings(result);
+      else {
+        setWorkouts((previous) =>
+          operation === "deleteWorkout"
+            ? previous.filter((w) => w.id !== payload.workout_id)
+            : [...previous.filter((w) => w.id !== result.id), result],
+        );
+        setWorkoutEditor(null);
+        tell(
+          operation === "deleteWorkout"
+            ? "Η προπόνηση διαγράφηκε."
+            : "Η προπόνηση αποθηκεύτηκε.",
+        );
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  function energySettingsView() {
+    navigate("settings");
+    requestAnimationFrame(() =>
+      document
+        .getElementById("energy-settings")
+        ?.scrollIntoView({ block: "start" }),
+    );
+  }
   const daily = meals.filter((m) => m.date === date),
     sum = totals(meals, date),
     fuel = totals(
       daily.filter((m) => m.category === "Τροφοδοσία προπόνησης"),
       date,
     ),
-    weekly = summarizeWeek(meals, date),
+    weekly = summarizeWeek(
+      meals,
+      date,
+      workouts,
+      energySettings.maintenance_calories,
+    ),
     disabled = busy || refreshing;
   return (
     <>
@@ -305,11 +360,22 @@ function App({ user, initial }) {
               }}
               disabled={disabled}
               migrationPending={migrationPending}
+              energy={dailyEnergy(
+                meals,
+                workouts,
+                date,
+                energySettings.maintenance_calories,
+              )}
+              workouts={workouts.filter((w) => w.date === date)}
+              onWorkout={setWorkoutEditor}
+              onSettings={energySettingsView}
+              energyMigrationPending={energyMigrationPending}
             />
           )}{" "}
           {view === "week" && (
             <WeeklyView
               weekly={weekly}
+              onSettings={energySettingsView}
               onDay={(day) => {
                 setDate(day);
                 navigate("day");
@@ -319,6 +385,12 @@ function App({ user, initial }) {
           {view === "progress" && <ProgressView weights={weights} />}{" "}
           <div className="settings-grid" hidden={view !== "settings"}>
             <div>
+              <EnergySettings
+                settings={energySettings}
+                pending={energyMigrationPending}
+                busy={disabled}
+                onSave={saveEnergy}
+              />
               <GoalEditor
                 goals={goals}
                 migrationPending={migrationPending}
@@ -361,6 +433,15 @@ function App({ user, initial }) {
           Nutrition Tracker · Τα δεδομένα σου, στον λογαριασμό σου.
         </footer>
       </main>
+      {workoutEditor && (
+        <WorkoutEditor
+          {...workoutEditor}
+          date={date}
+          busy={disabled}
+          onClose={() => setWorkoutEditor(null)}
+          onSave={saveEnergy}
+        />
+      )}
       {adding && (
         <Dialog
           title="Χειροκίνητη καταχώριση"

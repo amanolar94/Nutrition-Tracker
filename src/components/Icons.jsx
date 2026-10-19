@@ -1,5 +1,10 @@
 import React from "react";
 const paths = {
+  edit: (
+    <>
+      <path d="M15 5l4 4M4 20l4-1L20 7a2.8 2.8 0 00-4-4L4 15l-1 6z" />
+    </>
+  ),
   day: (
     <>
       <circle cx="12" cy="12" r="4" />

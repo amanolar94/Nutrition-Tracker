@@ -1420,3 +1420,136 @@ footer {
 .brand {
   min-height: 44px;
 }
+
+/* Energy accounting stays separate from intake targets and workout fueling. */
+.balance-breakdown {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0.4rem 0;
+}
+.balance-card {
+  border-top: 3px solid var(--green, #37654b);
+}
+.balance-card h2 {
+  font-size: 1rem;
+}
+.balance-label {
+  margin: 0.8rem 0 0.25rem;
+  font-weight: 600;
+}
+.balance-value {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 1rem;
+}
+.balance-value strong {
+  font-size: clamp(2rem, 7vw, 2.8rem);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+.balance-value span {
+  color: var(--muted);
+}
+.balance-card .nutrition-list {
+  margin: 0.6rem 0;
+}
+.balance-help {
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.balance-help summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0.65rem 0;
+}
+.balance-help p {
+  color: var(--muted);
+}
+.balance-card .text-button {
+  margin-top: 0.3rem;
+}
+.workout-log ul,
+.weekly-balances ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.8rem 0 0;
+}
+.workout-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--line, #e2e7df);
+  padding: 0.65rem 0;
+}
+.workout-row > div:first-child {
+  min-width: 0;
+}
+.workout-row h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+.workout-row p {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+}
+.workout-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.1rem;
+}
+.energy-settings {
+  margin-bottom: 1rem;
+  scroll-margin-top: 1rem;
+}
+.balance-day {
+  color: var(--ink);
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  padding: 0.85rem 0;
+  border: 0;
+  border-top: 1px solid var(--line, #e2e7df);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.balance-day span {
+  min-width: 0;
+}
+.balance-day small {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.6;
+  margin-top: 0.2rem;
+}
+.balance-day strong {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+@media (max-width: 360px) {
+  .balance-day {
+    align-items: start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+@media (max-width: 700px) {
+  .daily-overview > .balance-card {
+    order: 2;
+  }
+  .daily-overview > .workout-log {
+    order: 3;
+  }
+  .diary {
+    order: 4;
+  }
+  .fueling {
+    order: 5;
+  }
+}

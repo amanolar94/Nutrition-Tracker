@@ -2,6 +2,8 @@ import React from "react";
 import { metrics, number, budgetLabel, categories } from "../display.js";
 import { totals } from "../nutrition.js";
 import Icon from "./Icons.jsx";
+import EnergyBalance from "./EnergyBalance.jsx";
+import WorkoutLog from "./WorkoutLog.jsx";
 function Meter({ value, target, label }) {
   return (
     <progress
@@ -23,6 +25,11 @@ export default function DailyView({
   onDelete,
   disabled,
   migrationPending,
+  energy,
+  workouts,
+  onWorkout,
+  onSettings,
+  energyMigrationPending,
 }) {
   const target = (key) => goals[mode === "rest" ? key : `training_${key}`],
     incomplete = daily.some((m) => m.carbs == null || m.fat == null);
@@ -59,6 +66,7 @@ export default function DailyView({
           />
           <p>{budgetLabel(sum.calories, target("calories"), "kcal")}</p>
         </section>
+        <EnergyBalance energy={energy} onSettings={onSettings} />
         <section className="macro-stats" aria-label="Μακροθρεπτικά ημέρας">
           {metrics.slice(1).map(([key, label]) => (
             <article
@@ -106,6 +114,14 @@ export default function DailyView({
             <p className="data-note">Περιλαμβάνεται ήδη στα ημερήσια σύνολα.</p>
           </details>
         )}
+        <WorkoutLog
+          workouts={workouts}
+          onAdd={() => onWorkout({})}
+          onEdit={(w) => onWorkout({ workout: w })}
+          onDelete={(w) => onWorkout({ workout: w, remove: true })}
+          disabled={disabled}
+          pending={energyMigrationPending}
+        />
       </div>
       <section className="panel diary">
         <div className="section-title">

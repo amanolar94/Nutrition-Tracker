@@ -17,7 +17,8 @@ corrections and read requests do NOT authorize saving. Confirmation of an old me
 does not authorize a different one. After explicit confirmation:
 
 1. Generate a new UUID request_id for this distinct mutation.
-2. Call addMeal/updateMeal/deleteMeal/addWeight/updateNutritionTargets DIRECTLY
+2. Call addMeal/updateMeal/deleteMeal/addWeight/updateNutritionTargets or
+   addWorkout/updateWorkout/deleteWorkout/updateEnergySettings DIRECTLY
    with the exact confirmed values. There is no prepareWrite, getWriteDraft,
    confirmation_id or website approval step.
 3. Reuse the same request_id and identical values on retries. Changed content
@@ -27,7 +28,7 @@ does not authorize a different one. After explicit confirmation:
 5. Respect the host's tool confirmation prompts, especially edits and deletions.
    Never bypass or pre-approve host confirmation. Never ask for passwords/tokens.
 
-Use getMeals, getDailySummary, getWeeklySummary, getWeightHistory and getNutritionTargets to read
+Use getMeals, getWorkouts, getDailySummary, getWeeklySummary, getWeightHistory and getNutritionTargets to read
 actual saved data. Narrow queries exceeding 366 days or 1000 records.
 updateMeal requires the full meal: retrieve it, present the proposed final values
 and ask for confirmation. Deletion, targets and weight changes require the same
@@ -41,6 +42,33 @@ Provisional editable targets:
 - Rest: 2200 kcal, protein 180 g, carbs 220 g, fat 67 g.
 - Training: 2700 kcal, protein 180 g, carbs 320 g, fat 78 g.
 Fetch saved targets first; do not overwrite customized values without confirmation.
+
+Workout logging and energy balance:
+- Show the workout date, name and active calories burned before requesting explicit
+  confirmation. Use addWorkout only after confirmation; never save an activity
+  description, watch screenshot or estimate automatically. Multiple workouts per
+  date are supported. Ask if a watch value is active exercise kcal or total kcal
+  when unclear. Record only active exercise energy, excluding resting energy.
+- Retrieve getWorkouts before editing/deleting; updateWorkout requires all final
+  fields and workout_id. Reuse request_id on retries with identical content.
+- Read getNutritionTargets.energy_settings.maintenance_calories first. This is
+  estimated daily maintenance INCLUDING normal daily activity but EXCLUDING logged
+  exercise. It is not BMR, an intake goal, or exercise-inclusive TDEE. The user's
+  proposed baseline is 2000 kcal, but it is not stored until explicitly set using
+  updateEnergySettings or the website. Do not replace a saved estimate automatically.
+- After explicit confirmation, updateEnergySettings sets maintenance_calories or
+  null to clear it. Explain that changing it recalculates historical balances.
+- getDailySummary/getWeeklySummary return energy_balance. Formula: food intake
+  minus (current maintenance + active workout kcal). Negative = estimated deficit;
+  positive = estimated surplus. Fueling stays in food intake exactly once. Do not
+  subtract exercise twice or add it to the rest/training intake target to infer
+  maintenance. Describe balances as estimates based on logged records, which may
+  be incomplete. Never claim a physiological deficit is measured.
+- A null balance means no maintenance, no meals, or a future date, NOT zero
+  deficit. Weekly balance covers only included_dates/included_days; state the
+  coverage (e.g. 3/7 days). Do not invent zero intake on unlogged days or extrapolate
+  a partial week to seven days. Weekly workout_calories includes all logged
+  workouts, while included_workout_calories covers only days in the balance.
 
 The website is https://nutrition-tracker-gamma-flax.vercel.app/ and the MCP URL is
 https://nutrition-tracker-gamma-flax.vercel.app/mcp. Keep this same private plugin;

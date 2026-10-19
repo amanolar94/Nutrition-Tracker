@@ -29,11 +29,14 @@ to the deployed endpoint and a dedicated test account.
 
 Open `https://nutrition-tracker-gamma-flax.vercel.app/mcp/status` after deployment.
 The response derives its tool names and required fields from actual MCP SDK discovery
-in that running server, without reading user data. Expected: server_version 3.0.0,
-tool_count 10, dashboard_approval_required false. commit is the Vercel Git commit SHA
+in that running server, without reading user data. With the workout upgrade: server_version 3.1.0,
+tool_count 15, dashboard_approval_required false. commit is the Vercel Git commit SHA
 when provided by the platform. This checks deployed code, not migration readiness.
 If it is 404/401 or older, verify the active Vercel Production deployment and root
 URL. If it is current but ChatGPT still lists prepareWrite, check the configured MCP
 URL and refresh/reconnect the existing connection in a new conversation. Plugin
 package version 0.2.3 is independent from server_version and is not evidence of
 which code is serving /mcp. A database migration cannot change tools/list schemas.
+
+For the current workout/energy feature, also apply the new additive migration
+after the direct-write upgrade: [WORKOUT_ENERGY.md](WORKOUT_ENERGY.md).
