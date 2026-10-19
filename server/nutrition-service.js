@@ -54,13 +54,41 @@ export function summarizeMeals(meals, date) {
 }
 export function nutritionService(client, userId) {
   return {
-    async getMeals(args) {
+    async getMealTemplates() {
+      return checked(
+        await readRows(
+          client
+            .from("meal_templates")
+            .select("id,name,category,calories,protein,carbs,fat")
+            .eq("user_id", userId)
+            .order("created_at")
+            .order("id"),
+          1001,
+        ),
+      );
+    },
+    async getDayTypes(args) {
       const { start, end } = rangeBounds(args);
       return checked(
         await readRows(
           client
+            .from("diary_days")
+            .select("date,day_type")
+            .eq("user_id", userId)
+            .gte("date", start)
+            .lte("date", end)
+            .order("date"),
+          1001,
+        ),
+      );
+    },
+    async getMeals(args) {
+      const { start, end } = rangeBounds(args);
+      const query = (columns) =>
+        readRows(
+          client
             .from("meals")
-            .select(mealColumns)
+            .select(columns)
             .eq("user_id", userId)
             .gte("date", start)
             .lte("date", end)
@@ -68,8 +96,10 @@ export function nutritionService(client, userId) {
             .order("created_at")
             .order("id"),
           1001,
-        ),
-      );
+        );
+      let result = await query(mealColumns + ",meal_time");
+      if (missingSchema(result.error)) result = await query(mealColumns);
+      return checked(result);
     },
     async getDailySummary({ date }) {
       const meals = await this.getMeals({ date }),
@@ -80,6 +110,13 @@ export function nutritionService(client, userId) {
         throw Error("Too many records; use a narrower range");
       return {
         ...summarizeMeals(meals, date),
+        day_type:
+          (
+            await this.getDayTypes({ date }).catch((error) => {
+              if (!missingSchema(error)) throw error;
+              return [];
+            })
+          )[0]?.day_type || "rest",
         energy_balance: {
           ...dailyEnergy(meals, workouts, date, settings.maintenance_calories),
           setup_required,
@@ -100,6 +137,11 @@ export function nutritionService(client, userId) {
         date,
         workouts,
         settings.maintenance_calories,
+        undefined,
+        await this.getDayTypes({ start_date, end_date }).catch((error) => {
+          if (!missingSchema(error)) throw error;
+          return [];
+        }),
       );
       summary.energy_balance.setup_required = setup_required;
       return summary;

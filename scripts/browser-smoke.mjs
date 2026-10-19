@@ -29,6 +29,7 @@ await db.exec(
 for (const file of [
   "20261019_function_privileges.sql",
   "20261019_retire_personal_keys.sql",
+  "20261020_diary_usability.sql",
 ])
   await db.exec(
     await (
@@ -67,6 +68,8 @@ const vite = spawn(
 let browser;
 let legacyMode = false;
 let energyLegacyMode = false;
+let diaryLegacyMode = false;
+let loseNextMealResponse = false;
 let loseNextWorkoutResponse = false;
 const connectedClientId = "33333333-3333-4333-8333-333333333333";
 let oauthGrants = [
@@ -94,7 +97,7 @@ try {
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.route("https://nutrition-test.supabase.co/**", async (route) => {
+  const supabaseBridge = async (route) => {
     const req = route.request(),
       url = new URL(req.url());
     let body = {},
@@ -135,6 +138,11 @@ try {
         };
       } else if (url.pathname.includes("/rest/v1/")) {
         if (
+          (diaryLegacyMode &&
+            (["diary_days", "meal_templates"].includes(
+              url.pathname.split("/").at(-1),
+            ) ||
+              (url.searchParams.get("select") || "").includes("meal_time"))) ||
           (energyLegacyMode &&
             (url.pathname.endsWith("/workouts") ||
               url.pathname.endsWith("/energy_settings"))) ||
@@ -165,7 +173,11 @@ try {
               [args.p_operation, JSON.stringify(args.p_payload)],
             )
           ).rows[0].result;
-          if (loseNextWorkoutResponse && args.p_operation === "addWorkout") {
+          if (
+            (loseNextWorkoutResponse && args.p_operation === "addWorkout") ||
+            (loseNextMealResponse && args.p_operation === "addMeal")
+          ) {
+            loseNextMealResponse = false;
             loseNextWorkoutResponse = false;
             await route.fulfill({
               status: 500,
@@ -228,6 +240,8 @@ try {
               "chatgpt_keys",
               "workouts",
               "energy_settings",
+              "diary_days",
+              "meal_templates",
             ].includes(table)
           )
             throw Error("Unexpected table");
@@ -269,7 +283,8 @@ try {
       contentType: "application/json",
       body: JSON.stringify(body),
     });
-  });
+  };
+  await page.route("https://nutrition-test.supabase.co/**", supabaseBridge);
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto(origin);
   assert.equal(
@@ -412,7 +427,8 @@ try {
   assert.match(await page.locator(".weekly").innerText(), /300/);
   assert.match(await page.locator(".balance-card").innerText(), /2\.200/);
   assert.match(await page.locator(".balance-card").innerText(), /1\/7/);
-  assert.match(await page.locator(".weekly-balances").innerText(), /-2\.200/);
+  assert.match(await page.locator(".weekly-balances").innerText(), /−2\.200/);
+  await page.locator(".week-details summary").first().click();
   assert.equal(
     await page
       .locator(".balance-day")
@@ -544,13 +560,11 @@ try {
   }
   if (process.env.NUTRITION_SCREENSHOT_DIR) {
     await page.setViewportSize({ width: 375, height: 844 });
-    await page
-      .locator("#account-settings")
-      .screenshot({
-        path:
-          process.env.NUTRITION_SCREENSHOT_DIR +
-          "/account-connections-mobile.png",
-      });
+    await page.locator("#account-settings").screenshot({
+      path:
+        process.env.NUTRITION_SCREENSHOT_DIR +
+        "/account-connections-mobile.png",
+    });
   }
 
   await revoke.click();
@@ -660,7 +674,234 @@ try {
   await confirm("updateNutritionTargets", target);
   await page.getByRole("button", { name: "Ανανέωση", exact: true }).click();
   await page.getByLabel("Στόχοι ημέρας").selectOption("training");
-  assert.match(await page.locator(".stat").first().innerText(), /2\.700/);
+  await page.locator(".energy-card").filter({ hasText: "2.700" }).waitFor();
+  // Day type belongs to the date, survives reload and can be changed from MCP.
+  await page.reload();
+  await page
+    .getByRole("heading", { name: "Ημερήσια εικόνα", exact: true })
+    .waitFor();
+  await page.getByLabel("Ημερομηνία καταγραφής").fill("2026-10-14");
+  assert.equal(await page.getByLabel("Στόχοι ημέρας").inputValue(), "training");
+  await page.getByLabel("Ημερομηνία καταγραφής").fill("2026-10-13");
+  assert.equal(await page.getByLabel("Στόχοι ημέρας").inputValue(), "rest");
+  await confirm("setDayType", {
+    request_id: meal().request_id,
+    date: "2026-10-13",
+    day_type: "training",
+  });
+  await page.getByRole("button", { name: "Ανανέωση", exact: true }).click();
+  await page
+    .locator('[aria-label="Στόχοι ημέρας"] option:checked')
+    .filter({ hasText: "Προπόνηση" })
+    .waitFor({ state: "attached" });
+  await page.getByLabel("Ημερομηνία καταγραφής").fill("2026-10-14");
+
+  // Favorites are not food intake. Repeating opens an editable draft with no write.
+  await page
+    .getByRole("button", { name: "Αγαπημένο Updated via MCP", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Στα αγαπημένα Updated via MCP", exact: true })
+    .waitFor();
+  assert.equal((await db.query("select id from public.meals")).rows.length, 1);
+  await page
+    .getByRole("button", { name: "Αγαπημένα γεύματα", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Τα αγαπημένα σου γεύματα", exact: true })
+    .waitFor();
+  if (process.env.NUTRITION_SCREENSHOT_DIR)
+    await page.screenshot({
+      path: process.env.NUTRITION_SCREENSHOT_DIR + "/favorites-mobile.png",
+      fullPage: true,
+    });
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Επανάληψη", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Επανάληψη γεύματος", exact: true })
+    .waitFor();
+  assert.equal((await db.query("select id from public.meals")).rows.length, 1);
+  await page.keyboard.press("Escape");
+  assert.equal((await db.query("select id from public.meals")).rows.length, 1);
+  await page
+    .getByRole("button", { name: "Αγαπημένα γεύματα", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Επανάληψη", exact: true })
+    .click();
+  await page.locator('[name="name"]').fill("Επανάληψη αγαπημένου");
+  await page.locator('[name="meal_time"]').fill("09:30");
+  loseNextMealResponse = true;
+  await page
+    .getByRole("button", { name: "Αποθήκευση γεύματος", exact: true })
+    .click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Η αποθήκευση δεν επιβεβαιώθηκε" })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Αποθήκευση γεύματος", exact: true })
+    .click();
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+  assert.equal((await db.query("select id from public.meals")).rows.length, 2);
+  assert.equal(await page.locator(".meal-time").innerText(), "09:30");
+  await page
+    .getByRole("button", {
+      name: "Επεξεργασία Επανάληψη αγαπημένου",
+      exact: true,
+    })
+    .click();
+  await page.locator('[name="calories"]').fill("500");
+  await page
+    .getByRole("button", { name: "Αποθήκευση αλλαγών", exact: true })
+    .click();
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+  assert.equal(
+    (
+      await db.query(
+        "select calories from public.meals where name='Επανάληψη αγαπημένου'",
+      )
+    ).rows[0].calories,
+    500,
+  );
+  await page
+    .getByRole("button", { name: "Διαγραφή Επανάληψη αγαπημένου", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Διαγραφή γεύματος", exact: true })
+    .click();
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+  await page
+    .getByRole("button", { name: "Αγαπημένα γεύματα", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Επεξεργασία αγαπημένου Updated via MCP",
+      exact: true,
+    })
+    .click();
+  await page.locator('[name="name"]').fill("Το πρωινό μου");
+  await page
+    .getByRole("button", { name: "Αποθήκευση αγαπημένου", exact: true })
+    .click();
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+  await page
+    .getByRole("button", { name: "Αγαπημένα γεύματα", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Αφαίρεση αγαπημένου Το πρωινό μου",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: "Αφαίρεση αγαπημένου", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Κράτησε όσα τρως συχνά", exact: true })
+    .waitFor();
+  await page.getByRole("button", { name: "Κλείσιμο", exact: true }).click();
+  assert.equal((await db.query("select id from public.meals")).rows.length, 1);
+
+  await page.getByRole("button", { name: "Όλα", exact: true }).click();
+  await page.getByRole("button", { name: "Γεύματα", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Updated via MCP", exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Workout fueling", exact: true })
+    .click();
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Updated via MCP", exact: true })
+      .count(),
+    0,
+  );
+  await page.getByRole("button", { name: "Όλα", exact: true }).click();
+
+  // Touch devices keep the mobile navigation even when zoom-out increases layout width.
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    storageState: await page.context().storageState(),
+  });
+  await mobileContext.route(
+    "https://nutrition-test.supabase.co/**",
+    supabaseBridge,
+  );
+  const mobilePage = await mobileContext.newPage();
+  await mobilePage.goto(origin);
+  await mobilePage
+    .getByRole("heading", { name: "Ημερήσια εικόνα", exact: true })
+    .waitFor();
+  const cdp = await mobileContext.newCDPSession(mobilePage);
+  for (const width of [320, 390, 520, 780, 1024]) {
+    await mobilePage.setViewportSize({ width, height: 844 });
+    for (const view of ["Ημέρα", "Εβδομάδα", "Πρόοδος", "Ρυθμίσεις"]) {
+      await mobilePage.getByRole("tab", { name: view, exact: true }).click();
+      assert.equal(
+        await mobilePage
+          .locator(".view-nav")
+          .evaluate((el) => getComputedStyle(el).position),
+        "fixed",
+      );
+      assert.ok(
+        await mobilePage.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        `touch ${view} overflow at ${width}`,
+      );
+    }
+  }
+  await mobilePage.setViewportSize({ width: 390, height: 844 });
+  await mobilePage.getByRole("tab", { name: "Ημέρα", exact: true }).click();
+  for (const pageScaleFactor of [0.75, 1, 1.5, 2]) {
+    await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor });
+    assert.ok(
+      await mobilePage.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      `pinch layout overflow at ${pageScaleFactor}`,
+    );
+  }
+  await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 });
+  await mobileContext.close();
+  // Layout zoom simulates changed CSS-pixel sizes; every view must reflow.
+  for (const view of ["Ημέρα", "Εβδομάδα", "Πρόοδος", "Ρυθμίσεις"]) {
+    await page.getByRole("tab", { name: view, exact: true }).click();
+    for (const scale of [0.5, 0.75, 1, 1.25, 2]) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.evaluate(
+        (scale) => (document.documentElement.style.zoom = String(scale)),
+        scale,
+      );
+      assert.ok(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        `${view} overflow at zoom ${scale}: ${JSON.stringify(
+          await page.evaluate(() =>
+            [...document.querySelectorAll("body *")]
+              .filter((el) => el.getBoundingClientRect().right > innerWidth + 1)
+              .slice(0, 12)
+              .map((el) => ({
+                tag: el.tagName,
+                cls: el.className,
+                width: el.getBoundingClientRect().width,
+                right: el.getBoundingClientRect().right,
+              })),
+          ),
+        )}`,
+      );
+    }
+  }
+  await page.evaluate(() => (document.documentElement.style.zoom = ""));
+  await page.getByRole("tab", { name: "Ημέρα", exact: true }).click();
   await confirm("deleteMeal", {
     request_id: meal().request_id,
     meal_id: saved.id,
@@ -689,6 +930,25 @@ try {
     .getByRole("heading", { name: "Beyond 1000", exact: true })
     .waitFor();
   assert.match(await page.locator(".energy-card").innerText(), /777/);
+  diaryLegacyMode = true;
+  await page.goto(origin);
+  await page
+    .getByRole("heading", { name: "Ημερήσια εικόνα", exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Αγαπημένα γεύματα", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(await page.getByLabel("Στόχοι ημέρας").isDisabled(), true);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Χειροκίνητη προσθήκη", exact: true })
+      .isDisabled(),
+    false,
+  );
+  diaryLegacyMode = false;
   energyLegacyMode = true;
   await page.goto(origin);
   await page.getByRole("heading", { name: "Ημερήσια εικόνα" }).waitFor();
@@ -715,7 +975,7 @@ try {
   assert.equal(await page.locator("input[name=carbs]").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: simplified account connections, grant revocation failure/retry, no legacy key controls/requests, MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
+    "PASS: saved per-date day types, editable favorites without intake writes, draft repeats/cancel, meal-time editing and lost-response idempotency, diary filters, zoom 50–200%, new migration fallback, simplified account connections, grant revocation failure/retry, no legacy key controls/requests, MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
   );
 } finally {
   await browser?.close();

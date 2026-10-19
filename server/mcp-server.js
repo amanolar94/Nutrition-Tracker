@@ -3,7 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { writes, rangeSchema, dateSchema } from "./schemas.js";
-export const MCP_VERSION = "3.1.0";
+export const MCP_VERSION = "3.2.0";
 const readAnnotations = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -11,6 +11,12 @@ const readAnnotations = {
   openWorldHint: false,
 };
 const writeDetails = {
+  setDayType:
+    "Save rest/training day type for this date. Changes intake target selection, never maintenance or workout calories.",
+  saveMealTemplate:
+    "Save a favorite meal and its whole-portion macros for future reuse; pass template_id only to replace an existing favorite. Does NOT log a consumed meal. To repeat a favorite, read getMealTemplates, present portions/date/macros, obtain explicit confirmation, then call addMeal with a fresh request_id.",
+  deleteMealTemplate:
+    "Delete a favorite template. Previously logged meals are preserved.",
   addMeal:
     "Save the confirmed meal with macros for the total portion consumed.",
   updateMeal: "Replace a meal; retrieve it first and confirm all final fields.",
@@ -64,7 +70,7 @@ export function makeMcpServer(service) {
             code === "42501"
               ? "Access denied."
               : ["42P01", "42703", "PGRST204", "PGRST205"].includes(code)
-                ? "Database setup is pending. Apply the workout/energy migration in the existing Supabase project. No successful storage is confirmed."
+                ? "Database setup is pending. Apply the latest migrations in the existing Supabase project. No successful storage is confirmed."
                 : code === "22023"
                   ? "Invalid input."
                   : code === "23505"
@@ -77,6 +83,20 @@ export function makeMcpServer(service) {
       },
     );
   }
+  register(
+    "getMealTemplates",
+    z.object({}).strict(),
+    "Read your favorite meal templates and portion macros. This never records intake. Present the selected template and any quantity changes, ask for explicit confirmation, then use addMeal to log it.",
+    readAnnotations,
+    () => service.getMealTemplates(),
+  );
+  register(
+    "getDayTypes",
+    rangeSchema,
+    "Read saved rest/training selections for dates. Unspecified dates default to rest; workout logging does not automatically change day type.",
+    readAnnotations,
+    (args) => service.getDayTypes(args),
+  );
   register(
     "getMeals",
     rangeSchema,

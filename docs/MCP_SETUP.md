@@ -26,7 +26,8 @@ In the existing Supabase project's SQL Editor, with `schema.sql` and
 - `supabase/migrations/20261014_direct_mcp_writes.sql`
 - `supabase/migrations/20261019_workout_energy.sql` (workouts and energy balance)
 - `supabase/migrations/20261019_function_privileges.sql` (remove redundant legacy-function grants)
-- `supabase/migrations/20261019_retire_personal_keys.sql` (**last**; retire unused personal-key Actions)
+- `supabase/migrations/20261019_retire_personal_keys.sql` (retire unused personal-key Actions)
+- `supabase/migrations/20261020_diary_usability.sql` (**last**; favorites, per-date day types and optional meal time)
 
 The migration preserves meals/goals and existing user sign-in. Carbs/fat on old
 meals remain NULL (unknown), not invented nutritional values. The UI flags incomplete
@@ -163,7 +164,12 @@ Full machine-readable input schemas and annotations: `docs/mcp-tools.json`
 
 | Tool | Input |
 | --- | --- |
-| addMeal | request_id, date, name, category, calories, protein, carbs, fat |
+| addMeal | request_id, date, name, category, calories, protein, carbs, fat; optional meal_time HH:MM |
+| getMealTemplates | empty object; favorite portion macros, never consumption |
+| saveMealTemplate | request_id, name, category, calories, protein, carbs, fat; optional template_id to replace |
+| deleteMealTemplate | request_id, template_id |
+| getDayTypes | date OR start_date + end_date |
+| setDayType | request_id, date, day_type (rest/training) |
 | getMeals | date OR start_date + end_date |
 | getDailySummary | date |
 | getWeeklySummary | date (Monday–Sunday week containing it) |
@@ -191,6 +197,8 @@ Workout setup, energy balance semantics and additional acceptance checks:
 [WORKOUT_ENERGY.md](WORKOUT_ENERGY.md). Maintenance is unset until explicitly saved;
 the user-provided 2000 kcal is a form proposal. Food goals are not maintenance.
 
+Favorites, mobile changes and the latest migration: [DIARY_USABILITY.md](DIARY_USABILITY.md).
+
 ## 6. Required live acceptance checks
 
 Use a dedicated **test account**, not existing personal meal history. Do not paste
@@ -198,7 +206,7 @@ tokens or passwords into chat or logs.
 
 1. Request resource metadata and unauthenticated `/mcp`: valid metadata and 401
    with WWW-Authenticate are expected.
-2. Connect using the official MCP client or ChatGPT; initialize and list all 15 tools.
+2. Connect using the official MCP client or ChatGPT; initialize and list all 20 tools.
 3. Sign in to two test accounts. Verify each sees only its own meals,
    weights and targets. Wrong-project/audience, expired, revoked and anonymous
    tokens must fail.

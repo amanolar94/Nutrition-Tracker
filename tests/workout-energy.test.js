@@ -357,7 +357,7 @@ test("official MCP HTTP workout workflow saves once, reads balances, edits and d
       }),
     );
     const { tools } = await a.listTools();
-    assert.equal(tools.length, 15);
+    assert.equal(tools.length, 20);
     for (const name of [
       "addWorkout",
       "updateWorkout",

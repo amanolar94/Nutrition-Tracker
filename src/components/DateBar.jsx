@@ -33,9 +33,8 @@ export default function DateBar({ date, onChange, weekly = false }) {
               ? week.end_date.slice(0, 4)
               : `${week.start_date.slice(0, 4)}–${week.end_date.slice(0, 4)}`
             : dateLabel(date, {
-                weekday: "short",
                 day: "numeric",
-                month: "long",
+                month: "short",
                 year: "numeric",
               })}
         </span>

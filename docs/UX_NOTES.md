@@ -16,8 +16,8 @@ from this cloud environment during the task.
 - Meals are grouped into existing categories. Workout fuel remains distinct and
   already included in totals. The manual form opens on demand in a native dialog.
 - Previous/next day and native date picker work with the Athens calendar. Week bars
-  open the corresponding day's diary. Weekly averages explicitly include all seven
-  days; an unlogged day is not represented as proof of zero food intake.
+  open the corresponding day's diary. UI averages use days with recorded meals; unlogged days are excluded. The legacy
+  API daily_average is retained for compatibility, alongside recorded_day_average.
 - Actual weight records drive the graph and change from the first measurement;
   the 100 kg starting reference is not fabricated into history.
 - Target edits remain while navigating or refreshing. Untouched fields merge with
@@ -28,7 +28,15 @@ from this cloud environment during the task.
   instruction card and retired personal-key controls are removed; only current app
   connections and their access-removal action are shown.
 
-No SQL migration, MCP tool schema or authentication configuration changes are needed.
+The follow-up review used the user's trifuel screen recording (empty diary/history,
+meal library and mobile library). It informed compact summary cards, diary filters,
+favorites and comparison of both target sets. This is a visual reference, not verified
+reference backend behavior. ChatGPT remains the primary input, with one explicit
+confirmation before writes. Mobile bottom navigation is retained.
+
+The latest update requires the additive 20261020_diary_usability.sql migration;
+MCP 3.2.0 adds five tools, optional meal_time, and saved day types in summaries.
+See DIARY_USABILITY.md. No OAuth or environment-variable changes are needed.
 
 Verification: npm test; npm run build; npm run test:browser. Browser tests use real
 PostgreSQL fixtures behind a simulated Supabase HTTP bridge, not live personal data.

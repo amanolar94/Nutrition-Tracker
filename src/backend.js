@@ -16,44 +16,75 @@ export const defaultGoals = {
 const missingSchema = (error) =>
   ["42703", "PGRST204", "PGRST205", "42P01"].includes(error?.code);
 export async function loadDiary(userId) {
-  let [meals, goals, weights, workouts, energySettings] = await Promise.all([
-    readRows(
+  let [meals, goals, weights, workouts, energySettings, dayTypes, templates] =
+    await Promise.all([
+      readRows(
+        supabase
+          .from("meals")
+          .select("id,date,name,category,calories,protein,carbs,fat,meal_time")
+          .eq("user_id", userId)
+          .order("created_at")
+          .order("id"),
+      ),
+      supabase
+        .from("goals")
+        .select(
+          "calories,protein,carbs,fat,training_calories,training_protein,training_carbs,training_fat",
+        )
+        .eq("user_id", userId)
+        .maybeSingle(),
+      readRows(
+        supabase
+          .from("weights")
+          .select("id,date,weight_kg")
+          .eq("user_id", userId)
+          .order("date"),
+      ),
+      readRows(
+        supabase
+          .from("workouts")
+          .select("id,date,name,calories_burned")
+          .eq("user_id", userId)
+          .order("date")
+          .order("created_at")
+          .order("id"),
+      ),
+      supabase
+        .from("energy_settings")
+        .select("maintenance_calories")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      readRows(
+        supabase
+          .from("diary_days")
+          .select("date,day_type")
+          .eq("user_id", userId)
+          .order("date"),
+      ),
+      readRows(
+        supabase
+          .from("meal_templates")
+          .select("id,name,category,calories,protein,carbs,fat")
+          .eq("user_id", userId)
+          .order("created_at")
+          .order("id"),
+      ),
+    ]);
+  let diaryMigrationPending =
+    missingSchema(dayTypes.error) || missingSchema(templates.error);
+  if (missingSchema(dayTypes.error)) dayTypes = { data: [], error: null };
+  if (missingSchema(templates.error)) templates = { data: [], error: null };
+  if (missingSchema(meals.error)) {
+    diaryMigrationPending = true;
+    meals = await readRows(
       supabase
         .from("meals")
         .select("id,date,name,category,calories,protein,carbs,fat")
         .eq("user_id", userId)
         .order("created_at")
         .order("id"),
-    ),
-    supabase
-      .from("goals")
-      .select(
-        "calories,protein,carbs,fat,training_calories,training_protein,training_carbs,training_fat",
-      )
-      .eq("user_id", userId)
-      .maybeSingle(),
-    readRows(
-      supabase
-        .from("weights")
-        .select("id,date,weight_kg")
-        .eq("user_id", userId)
-        .order("date"),
-    ),
-    readRows(
-      supabase
-        .from("workouts")
-        .select("id,date,name,calories_burned")
-        .eq("user_id", userId)
-        .order("date")
-        .order("created_at")
-        .order("id"),
-    ),
-    supabase
-      .from("energy_settings")
-      .select("maintenance_calories")
-      .eq("user_id", userId)
-      .maybeSingle(),
-  ]);
+    );
+  }
   let migrationPending = false;
   if (missingSchema(meals.error)) {
     migrationPending = true;
@@ -88,14 +119,18 @@ export async function loadDiary(userId) {
     goals.error ||
     weights.error ||
     workouts.error ||
-    energySettings.error
+    energySettings.error ||
+    dayTypes.error ||
+    templates.error
   )
     throw (
       meals.error ||
       goals.error ||
       weights.error ||
       workouts.error ||
-      energySettings.error
+      energySettings.error ||
+      dayTypes.error ||
+      templates.error
     );
   return {
     meals: meals.data,
@@ -105,6 +140,9 @@ export async function loadDiary(userId) {
     workouts: workouts.data,
     energySettings: energySettings.data || { maintenance_calories: null },
     energyMigrationPending,
+    diaryMigrationPending,
+    dayTypes: dayTypes.data,
+    templates: templates.data,
   };
 }
 export async function insertMeal(userId, meal) {

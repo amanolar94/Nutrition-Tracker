@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { localDate, totals, validMeal } from "./nutrition.js";
+import { localDate, totals } from "./nutrition.js";
 import {
   supabase,
   insertMeal,
@@ -9,7 +9,7 @@ import {
   loadDiary,
   writeEnergy,
 } from "./backend.js";
-import { metrics, categories, dateLabel, number } from "./display.js";
+import { dateLabel, number } from "./display.js";
 import { summarizeWeek } from "./summaries.js";
 import Auth from "./Auth.jsx";
 import OAuthConsent from "./OAuthConsent.jsx";
@@ -25,6 +25,8 @@ import Icon from "./components/Icons.jsx";
 import EnergySettings from "./components/EnergySettings.jsx";
 import WorkoutEditor from "./components/WorkoutEditor.jsx";
 import { dailyEnergy } from "./energy.js";
+import MealEditor from "./components/MealEditor.jsx";
+import MealLibrary, { templateFields } from "./components/MealLibrary.jsx";
 import "./style.css";
 const titles = {
   day: "Ημερήσια εικόνα",
@@ -45,16 +47,24 @@ function App({ user, initial }) {
     ),
     [workoutEditor, setWorkoutEditor] = useState(null);
   const [date, setDate] = useState(localDate()),
-    [dayType, setDayType] = useState("rest"),
     [view, setView] = useState(initialView);
   const [busy, setBusy] = useState(false),
     [refreshing, setRefreshing] = useState(false),
     [migrationPending, setMigrationPending] = useState(
       initial.migrationPending || false,
     );
+  const [dayTypes, setDayTypes] = useState(initial.dayTypes || []),
+    [templates, setTemplates] = useState(initial.templates || []),
+    [diaryMigrationPending, setDiaryMigrationPending] = useState(
+      initial.diaryMigrationPending || false,
+    ),
+    [library, setLibrary] = useState(false),
+    [mealEditor, setMealEditor] = useState(null);
+  const actionReceipts = useRef(new Map());
+  const mutationLock = useRef(false);
+  const dayType = dayTypes.find((d) => d.date === date)?.day_type || "rest";
   const [notice, setNotice] = useState(null),
     [lastSync, setLastSync] = useState(new Date()),
-    [adding, setAdding] = useState(false),
     [deleting, setDeleting] = useState(null),
     [formError, setFormError] = useState("");
   const readVersion = useRef(0);
@@ -69,6 +79,9 @@ function App({ user, initial }) {
     setWorkouts(next.workouts || []);
     setEnergySettings(next.energySettings || { maintenance_calories: null });
     setEnergyMigrationPending(next.energyMigrationPending || false);
+    setDayTypes(next.dayTypes || []);
+    setTemplates(next.templates || []);
+    setDiaryMigrationPending(next.diaryMigrationPending || false);
     setLastSync(new Date());
   }
   function navigate(next) {
@@ -127,35 +140,65 @@ function App({ user, initial }) {
       document.removeEventListener("visibilitychange", onFocus);
     };
   }, [user.id, busy]);
-  async function add(e) {
-    e.preventDefault();
-    if (busy || refreshing) return;
-    const f = new FormData(e.currentTarget);
-    const meal = {
-      id: crypto.randomUUID(),
-      date,
-      name: f.get("name").trim(),
-      category: f.get("category"),
-    };
-    for (const [key] of migrationPending ? metrics.slice(0, 2) : metrics)
-      meal[key] = Number(f.get(key));
-    if (!validMeal(meal)) {
-      setFormError("Έλεγξε το όνομα και τις διατροφικές τιμές.");
-      return;
-    }
+  // Retain UUIDs after ambiguous failures; changed content gets its own receipt.
+  async function saveDiary(operation, payload) {
+    if (mutationLock.current || busy || refreshing) return false;
+    const content = JSON.stringify([operation, payload]);
+    const request_id =
+      payload.request_id ||
+      actionReceipts.current.get(content) ||
+      crypto.randomUUID();
+    actionReceipts.current.set(content, request_id);
+    mutationLock.current = true;
     ++readVersion.current;
     setBusy(true);
-    setFormError("");
     try {
-      await insertMeal(user.id, meal);
-      setMeals((previous) => [...previous, meal]);
-      setAdding(false);
-      tell("Το γεύμα αποθηκεύτηκε.");
+      let result;
+      if (diaryMigrationPending && operation === "addMeal") {
+        const {
+          request_id: ignored,
+          meal_time: ignoredTime,
+          ...fields
+        } = payload;
+        result = { ...fields, id: request_id };
+        await insertMeal(user.id, result);
+      } else result = await writeEnergy(operation, { ...payload, request_id });
+      if (operation === "setDayType")
+        setDayTypes((previous) => [
+          ...previous.filter((d) => d.date !== result.date),
+          result,
+        ]);
+      else if (operation === "deleteMealTemplate")
+        setTemplates((previous) =>
+          previous.filter((t) => t.id !== payload.template_id),
+        );
+      else if (operation === "saveMealTemplate") {
+        setTemplates((previous) => [
+          ...previous.filter((t) => t.id !== result.id),
+          result,
+        ]);
+        tell("Το αγαπημένο αποθηκεύτηκε.");
+      } else {
+        setMeals((previous) => [
+          ...previous.filter((m) => m.id !== result.id),
+          result,
+        ]);
+        tell(
+          operation === "updateMeal"
+            ? "Το γεύμα ενημερώθηκε."
+            : "Το γεύμα αποθηκεύτηκε.",
+        );
+      }
+      setMealEditor(null);
+      // A later intentional identical action is a new write, not a retry.
+      actionReceipts.current.delete(content);
+      return true;
     } catch {
-      setFormError(
-        "Το γεύμα δεν αποθηκεύτηκε. Τα στοιχεία σου παραμένουν στη φόρμα για να δοκιμάσεις ξανά.",
-      );
+      if (!payload.request_id)
+        tell("Η αλλαγή δεν επιβεβαιώθηκε. Δοκίμασε ξανά.", "error");
+      return false;
     } finally {
+      mutationLock.current = false;
       setBusy(false);
     }
   }
@@ -165,7 +208,15 @@ function App({ user, initial }) {
     setBusy(true);
     setFormError("");
     try {
-      await deleteMeal(user.id, deleting.id);
+      if (diaryMigrationPending) await deleteMeal(user.id, deleting.id);
+      else {
+        const key = `delete:${deleting.id}`;
+        const request_id =
+          actionReceipts.current.get(key) || crypto.randomUUID();
+        actionReceipts.current.set(key, request_id);
+        await writeEnergy("deleteMeal", { request_id, meal_id: deleting.id });
+        actionReceipts.current.delete(key);
+      }
       setMeals((previous) => previous.filter((m) => m.id !== deleting.id));
       setDeleting(null);
       tell("Το γεύμα διαγράφηκε.");
@@ -248,6 +299,8 @@ function App({ user, initial }) {
       date,
       workouts,
       energySettings.maintenance_calories,
+      undefined,
+      dayTypes,
     ),
     disabled = busy || refreshing;
   return (
@@ -342,16 +395,25 @@ function App({ user, initial }) {
           )}
           {view === "day" && (
             <DailyView
+              key={date}
               daily={daily}
+              templates={templates}
+              diaryMigrationPending={diaryMigrationPending}
+              onFavorite={(m) =>
+                saveDiary("saveMealTemplate", templateFields(m))
+              }
+              onLibrary={() => setLibrary(true)}
+              onEdit={(meal) => setMealEditor({ meal })}
+              onRepeat={(template) => setMealEditor({ template })}
               sum={sum}
               fuel={fuel}
               date={date}
               goals={goals}
               mode={dayType}
-              onMode={setDayType}
+              onMode={(day_type) => saveDiary("setDayType", { date, day_type })}
               onAdd={() => {
                 setFormError("");
-                setAdding(true);
+                setMealEditor({});
               }}
               onDelete={(meal) => {
                 setFormError("");
@@ -426,71 +488,32 @@ function App({ user, initial }) {
           onSave={saveEnergy}
         />
       )}
-      {adding && (
-        <Dialog
-          title="Χειροκίνητη καταχώριση"
-          busy={busy}
-          onClose={() => setAdding(false)}
-        >
-          <p className="muted">
-            Για{" "}
-            {dateLabel(date, {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-            . Συμπλήρωσε τις τιμές για όλο το γεύμα.
-          </p>
-          <form onSubmit={add}>
-            <fieldset disabled={disabled}>
-              <label>
-                Όνομα γεύματος
-                <input
-                  name="name"
-                  maxLength="120"
-                  placeholder="π.χ. Γιαούρτι με βρώμη"
-                  autoFocus
-                  required
-                />
-              </label>
-              <label>
-                Κατηγορία
-                <select name="category">
-                  {(migrationPending ? categories.slice(0, 4) : categories).map(
-                    (c) => (
-                      <option key={c}>{c}</option>
-                    ),
-                  )}
-                </select>
-              </label>
-              <div className="pair">
-                {(migrationPending ? metrics.slice(0, 2) : metrics).map(
-                  ([key, label, unit]) => (
-                    <label key={key}>
-                      {label} ({unit})
-                      <input
-                        name={key}
-                        type="number"
-                        inputMode="decimal"
-                        min={key === "calories" ? ".1" : "0"}
-                        step="any"
-                        required
-                      />
-                    </label>
-                  ),
-                )}
-              </div>
-              {formError && (
-                <p className="form-feedback error" role="alert">
-                  {formError}
-                </p>
-              )}
-              <button className="primary" type="submit">
-                {busy ? "Αποθήκευση…" : "Αποθήκευση γεύματος"}
-              </button>
-            </fieldset>
-          </form>
-        </Dialog>
+      {library && (
+        <MealLibrary
+          templates={templates}
+          busy={disabled}
+          onClose={() => setLibrary(false)}
+          onRepeat={(template) => {
+            setLibrary(false);
+            setMealEditor({ template });
+          }}
+          onEdit={(template) => {
+            setLibrary(false);
+            setMealEditor({ template, favorite: true });
+          }}
+          onDelete={(payload) => saveDiary("deleteMealTemplate", payload)}
+        />
+      )}
+      {mealEditor && (
+        <MealEditor
+          {...mealEditor}
+          date={date}
+          legacy={migrationPending}
+          timeEnabled={!diaryMigrationPending}
+          busy={disabled}
+          onClose={() => setMealEditor(null)}
+          onSave={saveDiary}
+        />
       )}
       {deleting && (
         <Dialog

@@ -2,32 +2,16 @@ import React, { useState } from "react";
 import { metrics } from "../display.js";
 export default function GoalEditor({ goals, migrationPending, busy, onSave }) {
   const [edits, setEdits] = useState({}),
-    [mode, setMode] = useState("rest"),
     [feedback, setFeedback] = useState("");
   const draft = { ...goals, ...edits },
     dirty = Object.keys(edits).length > 0;
   return (
     <section className="panel goals">
       <h2>Οι διατροφικοί σου στόχοι</h2>
-      <p className="muted">Άλλαξε τους στόχους ανάπαυσης και προπόνησης.</p>
-      <div className="segmented" role="group" aria-label="Επεξεργασία στόχων">
-        <button
-          type="button"
-          disabled={busy}
-          aria-pressed={mode === "rest"}
-          onClick={() => setMode("rest")}
-        >
-          Ανάπαυση
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === "training"}
-          disabled={busy || migrationPending}
-          onClick={() => setMode("training")}
-        >
-          Προπόνηση
-        </button>
-      </div>
+      <p className="muted">
+        Σύγκρινε και άλλαξε τους δύο στόχους πρόσληψης. Η συντήρηση για το
+        ισοζύγιο ρυθμίζεται χωριστά.
+      </p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -61,35 +45,48 @@ export default function GoalEditor({ goals, migrationPending, busy, onSave }) {
         }}
       >
         <fieldset disabled={busy}>
-          <div className="pair">
-            {(migrationPending ? metrics.slice(0, 2) : metrics).map(
-              ([key, label, unit]) => {
-                const name = mode === "rest" ? key : `training_${key}`;
-                return (
-                  <label key={name}>
-                    {label} ({unit})
-                    <input
-                      name={`${mode}_${key}`}
-                      value={draft[name] ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setEdits((previous) => {
-                          const next = { ...previous };
-                          if (value === String(goals[name])) delete next[name];
-                          else next[name] = value;
-                          return next;
-                        });
-                        setFeedback("");
-                      }}
-                      type="number"
-                      inputMode="decimal"
-                      min={key === "calories" || key === "protein" ? ".1" : "0"}
-                      step="any"
-                      required
-                    />
-                  </label>
-                );
-              },
+          <div className="goal-columns">
+            {(migrationPending ? ["rest"] : ["rest", "training"]).map(
+              (mode) => (
+                <div className="goal-column" key={mode}>
+                  <h3>{mode === "rest" ? "Ανάπαυση" : "Προπόνηση"}</h3>
+                  {(migrationPending ? metrics.slice(0, 2) : metrics).map(
+                    ([key, label, unit]) => {
+                      const name = mode === "rest" ? key : `training_${key}`;
+                      return (
+                        <label key={name}>
+                          {label} ({unit})
+                          <input
+                            name={`${mode}_${key}`}
+                            value={draft[name] ?? ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setEdits((previous) => {
+                                const next = { ...previous };
+                                if (value === String(goals[name]))
+                                  delete next[name];
+                                else next[name] = value;
+                                return next;
+                              });
+                              setFeedback("");
+                            }}
+                            type="number"
+                            inputMode="decimal"
+                            min={
+                              key === "calories" || key === "protein"
+                                ? ".1"
+                                : "0"
+                            }
+                            max={key === "calories" ? "100000" : "10000"}
+                            step="any"
+                            required
+                          />
+                        </label>
+                      );
+                    },
+                  )}
+                </div>
+              ),
             )}
           </div>
           <button className="primary" disabled={!dirty}>

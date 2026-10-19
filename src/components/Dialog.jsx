@@ -1,6 +1,12 @@
 import React, { useEffect, useId, useRef } from "react";
 import Icon from "./Icons.jsx";
-export default function Dialog({ title, onClose, busy = false, children }) {
+export default function Dialog({
+  title,
+  onClose,
+  busy = false,
+  children,
+  wide = false,
+}) {
   const ref = useRef(null),
     id = useId();
   useEffect(() => {
@@ -12,7 +18,7 @@ export default function Dialog({ title, onClose, busy = false, children }) {
   }, []);
   return (
     <dialog
-      className="app-dialog"
+      className={`app-dialog${wide ? " dialog-wide" : ""}`}
       ref={ref}
       aria-labelledby={id}
       onCancel={(e) => {

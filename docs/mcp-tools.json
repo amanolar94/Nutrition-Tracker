@@ -1,6 +1,57 @@
 {
   "tools": [
     {
+      "name": "getMealTemplates",
+      "description": "Read your favorite meal templates and portion macros. This never records intake. Present the selected template and any quantity changes, ask for explicit confirmation, then use addMeal to log it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "getDayTypes",
+      "description": "Read saved rest/training selections for dates. Unspecified dates default to rest; workout logging does not automatically change day type.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "start_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "getMeals",
       "description": "Read meals for one date or an inclusive range (max 366 days, max 1000 records).",
       "inputSchema": {
@@ -170,6 +221,155 @@
       }
     },
     {
+      "name": "setDayType",
+      "description": "Save rest/training day type for this date. Changes intake target selection, never maintenance or workout calories. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "day_type": {
+            "type": "string",
+            "enum": [
+              "rest",
+              "training"
+            ]
+          }
+        },
+        "required": [
+          "request_id",
+          "date",
+          "day_type"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "saveMealTemplate",
+      "description": "Save a favorite meal and its whole-portion macros for future reuse; pass template_id only to replace an existing favorite. Does NOT log a consumed meal. To repeat a favorite, read getMealTemplates, present portions/date/macros, obtain explicit confirmation, then call addMeal with a fresh request_id. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "template_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Πρωινό",
+              "Μεσημεριανό",
+              "Βραδινό",
+              "Σνακ",
+              "Τροφοδοσία προπόνησης"
+            ]
+          },
+          "calories": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 100000
+          },
+          "protein": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "carbs": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "fat": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "request_id",
+          "name",
+          "category",
+          "calories",
+          "protein",
+          "carbs",
+          "fat"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "deleteMealTemplate",
+      "description": "Delete a favorite template. Previously logged meals are preserved. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "template_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "request_id",
+          "template_id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "addMeal",
       "description": "Save the confirmed meal with macros for the total portion consumed. Execute ONLY after the user explicitly confirms this exact change in ChatGPT. Save immediately without dashboard approval. Reuse request_id and identical values on retries.",
       "inputSchema": {
@@ -218,6 +418,18 @@
             "type": "number",
             "minimum": 0,
             "maximum": 10000
+          },
+          "meal_time": {
+            "description": "Optional meal time HH:MM in Europe/Athens. Null clears the time; omitted updates preserve it.",
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -297,6 +509,18 @@
             "type": "number",
             "minimum": 0,
             "maximum": 10000
+          },
+          "meal_time": {
+            "description": "Optional meal time HH:MM in Europe/Athens. Null clears the time; omitted updates preserve it.",
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

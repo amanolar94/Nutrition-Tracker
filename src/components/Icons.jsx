@@ -1,5 +1,8 @@
 import React from "react";
 const paths = {
+  star: (
+    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z" />
+  ),
   edit: (
     <>
       <path d="M15 5l4 4M4 20l4-1L20 7a2.8 2.8 0 00-4-4L4 15l-1 6z" />

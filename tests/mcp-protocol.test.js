@@ -46,5 +46,5 @@ test('ranges and summary include fueling once and flag unknown legacy macros',()
 test('public status reports actual SDK-discovered schema without exposing data or authenticating',async()=>{
  const handler=makeHandler(async()=>{throw Error('Status must not call authentication');});let body;const res={headers:{},setHeader(k,v){this.headers[k]=v;},end(v){body=JSON.parse(v);}};
  await handler({method:'GET',headers:{},query:{status:'1'}},res);
- assert.equal(res.statusCode,200);assert.equal(res.headers['Cache-Control'],'no-store');assert.equal(body.server_version,'3.1.0');assert.equal(body.tool_count,15);assert.equal(body.dashboard_approval_required,false);assert.equal(body.tools.some(t=>t.name==='prepareWrite'),false);assert.equal(body.tools.find(t=>t.name==='addMeal').required.includes('confirmation_id'),false);assert.equal(Object.hasOwn(body,'meals'),false);
+ assert.equal(res.statusCode,200);assert.equal(res.headers['Cache-Control'],'no-store');assert.equal(body.server_version,'3.2.0');assert.equal(body.tool_count,20);assert.equal(body.dashboard_approval_required,false);assert.equal(body.tools.some(t=>t.name==='prepareWrite'),false);assert.equal(body.tools.find(t=>t.name==='addMeal').required.includes('confirmation_id'),false);assert.equal(Object.hasOwn(body,'meals'),false);
 });

@@ -13,6 +13,7 @@ export function summarizeWeek(
   workouts = [],
   maintenance = null,
   today,
+  dayTypes = [],
 ) {
   const { start_date, end_date } = weekBounds(date);
   const selected = meals.filter(
@@ -39,6 +40,7 @@ export function summarizeWeek(
     }
     daily.push({
       date,
+      day_type: dayTypes.find((d) => d.date === date)?.day_type || "rest",
       totals: sum,
       meal_count: records.length,
       energy_balance: dailyEnergy(records, workouts, date, maintenance, today),
@@ -53,6 +55,15 @@ export function summarizeWeek(
     daily,
     daily_average: Object.fromEntries(
       Object.entries(totals).map(([k, v]) => [k, v / 7]),
+    ),
+    recorded_days: daily.filter((d) => d.meal_count > 0).length,
+    recorded_day_average: Object.fromEntries(
+      Object.entries(totals).map(([k, v]) => [
+        k,
+        daily.some((d) => d.meal_count > 0)
+          ? v / daily.filter((d) => d.meal_count > 0).length
+          : null,
+      ]),
     ),
     meal_count: selected.length,
     incomplete_macro_records,

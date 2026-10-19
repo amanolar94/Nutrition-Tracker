@@ -1,7 +1,12 @@
 import React from "react";
 import { number } from "../display.js";
 
-export default function EnergyBalance({ energy, weekly = false, onSettings }) {
+export default function EnergyBalance({
+  energy,
+  weekly = false,
+  onSettings,
+  compact = false,
+}) {
   const balance = energy.balance_calories;
   const kind =
     balance === null
@@ -21,7 +26,7 @@ export default function EnergyBalance({ energy, weekly = false, onSettings }) {
           : "Εκτιμώμενη ισορροπία";
   return (
     <section
-      className={`panel balance-card ${kind}`}
+      className={`panel balance-card ${kind}${compact ? " balance-compact" : ""}`}
       aria-label={
         weekly ? "Ενεργειακό ισοζύγιο εβδομάδας" : "Ενεργειακό ισοζύγιο ημέρας"
       }
@@ -37,7 +42,7 @@ export default function EnergyBalance({ energy, weekly = false, onSettings }) {
         <strong>{balance === null ? "—" : number(Math.abs(balance))}</strong>
         <span>kcal</span>
       </div>
-      {balance !== null && (
+      {!compact && balance !== null && (
         <dl className="nutrition-list balance-equation">
           <div>
             <dt>Φαγητό</dt>
@@ -49,7 +54,7 @@ export default function EnergyBalance({ energy, weekly = false, onSettings }) {
           </div>
         </dl>
       )}
-      {!weekly && (
+      {!weekly && !compact && (
         <p className="balance-breakdown">
           Συντήρηση{" "}
           {energy.maintenance_calories === null
@@ -58,7 +63,7 @@ export default function EnergyBalance({ energy, weekly = false, onSettings }) {
           + προπόνηση <b>{number(energy.workout_calories)} kcal</b>
         </p>
       )}
-      {weekly && (
+      {weekly && !compact && (
         <p className="data-note">
           Προπονήσεις ολόκληρης εβδομάδας:{" "}
           <b>{number(energy.workout_calories)} kcal</b>.
@@ -75,12 +80,62 @@ export default function EnergyBalance({ energy, weekly = false, onSettings }) {
                 : "Δεν υπάρχουν καταγεγραμμένα γεύματα για αυτή την ημέρα."}
         </p>
       )}
-      <p className="data-note">
-        {weekly ? "Μόνο ημέρες έως σήμερα με γεύματα και συντήρηση. " : ""}
-        Εκτίμηση με όσα έχεις καταγράψει μέχρι τώρα.
-      </p>
+      {!compact && (
+        <p className="data-note">
+          {weekly ? "Μόνο ημέρες έως σήμερα με γεύματα και συντήρηση. " : ""}
+          Εκτίμηση με όσα έχεις καταγράψει μέχρι τώρα.
+        </p>
+      )}
+      {compact && (
+        <div className="compact-equation">
+          <span>
+            Φαγητό <b>{number(energy.intake_calories)}</b>
+          </span>
+          <span>
+            Προπόνηση{" "}
+            <b>
+              {number(
+                weekly
+                  ? energy.included_workout_calories
+                  : energy.workout_calories,
+              )}
+            </b>
+          </span>
+          <span>
+            {weekly ? "Καύσεις στις ημέρες σύγκρισης" : "Συντήρηση"}{" "}
+            <b>
+              {(weekly
+                ? energy.estimated_expenditure_calories
+                : energy.maintenance_calories) === null
+                ? "—"
+                : number(
+                    weekly
+                      ? energy.estimated_expenditure_calories
+                      : energy.maintenance_calories,
+                  )}
+            </b>
+          </span>
+        </div>
+      )}
+      {compact && balance !== null && (
+        <p className="data-note estimate-note">
+          Με όσα έχουν καταγραφεί μέχρι τώρα
+          {weekly
+            ? ` · ${energy.included_days}/7 ημέρες`
+            : " · μπορεί να λείπουν γεύματα"}
+          .
+        </p>
+      )}
       <details className="balance-help">
         <summary>Πώς υπολογίζεται;</summary>
+        {weekly && (
+          <p>
+            Προπονήσεις ολόκληρης εβδομάδας: {number(energy.workout_calories)}{" "}
+            kcal. Στο ισοζύγιο συμμετέχουν{" "}
+            {number(energy.included_workout_calories)} kcal από τις ημέρες
+            σύγκρισης.
+          </p>
+        )}
         <p>
           Φαγητό − (συντήρηση χωρίς άσκηση + ενεργές θερμίδες προπόνησης).
           Αρνητικό σημαίνει έλλειμμα, θετικό πλεόνασμα. Η τροφοδοσία προπόνησης

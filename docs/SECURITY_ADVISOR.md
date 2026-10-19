@@ -7,7 +7,8 @@ The application now uses the existing OAuth MCP connection for ChatGPT writes.
 
 In the existing Supabase SQL Editor, run
 [`20261019_retire_personal_keys.sql`](../supabase/migrations/20261019_retire_personal_keys.sql)
-**last**, after the earlier ChatGPT/MCP/function-privilege migrations. It revokes
+after the earlier ChatGPT/MCP/function-privilege migrations. The newer
+`20261020_diary_usability.sql` follows it and preserves these revocations. It revokes
 `PUBLIC`, `anon` and `authenticated` execution of both legacy `add_chatgpt_meal*`
 functions and revokes INSERT/UPDATE on `chatgpt_keys`. Older browser clients also
 lose the ability to create keys. Do not rerun earlier migrations that grant these

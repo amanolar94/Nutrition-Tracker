@@ -25,6 +25,14 @@ export const mealFields = {
   protein: macro,
   carbs: macro,
   fat: macro,
+  meal_time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable()
+    .optional()
+    .describe(
+      "Optional meal time HH:MM in Europe/Athens. Null clears the time; omitted updates preserve it.",
+    ),
 };
 const target = z
   .object({
@@ -47,6 +55,27 @@ const workoutFields = {
     ),
 };
 export const writes = {
+  setDayType: z
+    .object({
+      request_id: z.string().uuid(),
+      date: dateSchema,
+      day_type: z.enum(["rest", "training"]),
+    })
+    .strict(),
+  saveMealTemplate: z
+    .object({
+      request_id: z.string().uuid(),
+      template_id: z.string().uuid().optional(),
+      ...Object.fromEntries(
+        Object.entries(mealFields).filter(
+          ([key]) => !["date", "meal_time"].includes(key),
+        ),
+      ),
+    })
+    .strict(),
+  deleteMealTemplate: z
+    .object({ request_id: z.string().uuid(), template_id: z.string().uuid() })
+    .strict(),
   addMeal: z.object({ request_id: z.string().uuid(), ...mealFields }).strict(),
   updateMeal: z
     .object({
