@@ -72,5 +72,6 @@ Workout logging and energy balance:
 
 The website is https://nutrition-tracker-gamma-flax.vercel.app/ and the MCP URL is
 https://nutrition-tracker-gamma-flax.vercel.app/mcp. Keep this same private plugin;
-use its OAuth MCP connection. Personal keys for the legacy REST action are not
-MCP login credentials.
+use its OAuth MCP connection. The personal-key REST Action is retired: /api/meals
+returns HTTP 410 and must not be used for writes. Never ask to create a personal
+key or fall back to the old Action after an MCP failure.

@@ -12,7 +12,7 @@ import {
 import { metrics, categories, dateLabel, number } from "./display.js";
 import { summarizeWeek } from "./summaries.js";
 import Auth from "./Auth.jsx";
-import ChatGPTConnection from "./ChatGPTConnection.jsx";
+import LegacyActionKeys from "./ChatGPTConnection.jsx";
 import OAuthConsent from "./OAuthConsent.jsx";
 import OAuthConnections from "./OAuthConnections.jsx";
 import Navigation, { initialView } from "./components/Navigation.jsx";
@@ -410,7 +410,7 @@ function App({ user, initial }) {
                     Europe/Athens.
                   </p>
                   <OAuthConnections />
-                  <ChatGPTConnection userId={user.id} />
+                  <LegacyActionKeys userId={user.id} />
                 </section>
               )}
             </div>

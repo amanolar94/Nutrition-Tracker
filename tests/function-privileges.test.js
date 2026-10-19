@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { database, identity, userA, userB, meal } from "./helpers/database.js";
-import { makeHandler } from "../api/meals.js";
 
 const signatures = {
   legacy:
@@ -11,7 +10,7 @@ const signatures = {
   mcp: "public.write_nutrition(text,jsonb)",
 };
 
-test("function privilege upgrade keeps REST key auth and MCP ownership while removing unnecessary grants", async () => {
+test("historical privilege upgrade preserves key auth before the retirement migration", async () => {
   const db = await database();
   async function migrate(name) {
     await db.exec("reset role");
@@ -129,57 +128,10 @@ test("function privilege upgrade keeps REST key auth and MCP ownership while rem
     assert.equal(currentSaved.carbs, 30);
     await action("v2", tokenB, meal());
 
-    // Exercise the real /api/meals handler through a SQL-backed Supabase adapter.
-    const adapter = {
-      async rpc(name, args) {
-        try {
-          return {
-            data: await action(
-              name === "add_chatgpt_meal" ? "legacy" : "v2",
-              args.p_token,
-              {
-                request_id: args.p_request_id,
-                date: args.p_date,
-                name: args.p_name,
-                category: args.p_category,
-                calories: args.p_calories,
-                protein: args.p_protein,
-                carbs: args.p_carbs,
-                fat: args.p_fat,
-              },
-            ),
-          };
-        } catch (error) {
-          return { error };
-        }
-      },
-    };
-    let status, body;
-    const response = {
-      setHeader() {},
-      status(value) {
-        status = value;
-        return this;
-      },
-      json(value) {
-        body = value;
-        return this;
-      },
-    };
-    await makeHandler(() => adapter)(
-      {
-        method: "POST",
-        headers: { authorization: "Bearer " + tokenA },
-        body: meal(),
-      },
-      response,
-    );
-    assert.equal(status, 200);
-    assert.ok(body.meal.id);
     await identity(db, userA);
     assert.equal(
       (await db.query("select id from public.meals")).rows.length,
-      4,
+      3,
     );
     assert.deepEqual(await write("addMeal", original), saved);
     for (const version of ["legacy", "v2"])

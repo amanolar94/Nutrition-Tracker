@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import {rea
 import {database,identity,userA,userB,meal} from './helpers/database.js';
 import {databaseClient} from './helpers/client.js';import {nutritionService} from '../server/nutrition-service.js';
 import {summarizeWeek} from '../src/summaries.js';
-export async function directDatabase(){const db=await database();await db.exec(await readFile(new URL('../supabase/migrations/20261014_direct_mcp_writes.sql',import.meta.url),'utf8'));await db.exec(await readFile(new URL('../supabase/migrations/20261019_workout_energy.sql',import.meta.url),'utf8'));return db;}
+export async function directDatabase(){const db=await database();await db.exec(await readFile(new URL('../supabase/migrations/20261014_direct_mcp_writes.sql',import.meta.url),'utf8'));await db.exec(await readFile(new URL('../supabase/migrations/20261019_workout_energy.sql',import.meta.url),'utf8'));for(const file of ['20261019_function_privileges.sql','20261019_retire_personal_keys.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));return db;}
 test('direct confirmed writes, no draft required, all macros/fueling, reads, ownership and idempotency',async()=>{const db=await directDatabase();try{
  await db.exec(await readFile(new URL('../supabase/migrations/20261019_workout_energy.sql',import.meta.url),'utf8'));
  const a=nutritionService(databaseClient(db,userA),userA),b=nutritionService(databaseClient(db,userB),userB);const input={...meal(),category:'Τροφοδοσία προπόνησης'};

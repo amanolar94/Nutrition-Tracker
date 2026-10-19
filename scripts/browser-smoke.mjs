@@ -26,6 +26,22 @@ await db.exec(
     "utf8",
   ),
 );
+for (const file of [
+  "20261019_function_privileges.sql",
+  "20261019_retire_personal_keys.sql",
+])
+  await db.exec(
+    await (
+      await import("node:fs/promises")
+    ).readFile(
+      new URL("../supabase/migrations/" + file, import.meta.url),
+      "utf8",
+    ),
+  );
+await db.query(
+  "insert into public.chatgpt_keys(user_id,name,token_hash) values($1,'Παλιό δοκιμαστικό κλειδί',$2)",
+  [userA, "e".repeat(64)],
+);
 const port = 5192;
 const origin = `http://127.0.0.1:${port}`;
 const vite = spawn(
@@ -156,9 +172,12 @@ try {
             ],
           );
           body = [];
-        } else if (req.method() === "DELETE" && table === "meals") {
+        } else if (
+          req.method() === "DELETE" &&
+          ["meals", "chatgpt_keys"].includes(table)
+        ) {
           await db.query(
-            "delete from public.meals where id=$1 and user_id=$2",
+            `delete from public.${table} where id=$1 and user_id=$2`,
             [url.searchParams.get("id").slice(3), userA],
           );
           body = [];
@@ -380,12 +399,13 @@ try {
       .evaluate((el) => getComputedStyle(el).color),
     "rgb(32, 58, 61)",
   );
-  if (process.env.NUTRITION_SCREENSHOT_DIR)
+  if (process.env.NUTRITION_SCREENSHOT_DIR) {
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-  await page.screenshot({
-    path: process.env.NUTRITION_SCREENSHOT_DIR + "/week-mobile.png",
-    fullPage: true,
-  });
+    await page.screenshot({
+      path: process.env.NUTRITION_SCREENSHOT_DIR + "/week-mobile.png",
+      fullPage: true,
+    });
+  }
   await page.getByRole("button", { name: /Τετάρτη.*300 kcal/ }).click();
   await page.getByRole("heading", { name: "Ημερήσια εικόνα" }).waitFor();
   assert.equal(
@@ -460,6 +480,29 @@ try {
   // Local goal edits survive data refresh and view changes without overwriting
   // untouched settings received from another device.
   await page.getByRole("tab", { name: "Ρυθμίσεις", exact: true }).click();
+  assert.equal(
+    await page
+      .getByRole("button", {
+        name: "Δημιουργία προσωπικού κλειδιού",
+        exact: true,
+      })
+      .count(),
+    0,
+  );
+  await page.getByText("Παλιά κλειδιά σύνδεσης", { exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Διαγραφή παλιού κλειδιού Παλιό δοκιμαστικό κλειδί",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByText("Το παλιό κλειδί διαγράφηκε.", { exact: true })
+    .waitFor();
+  assert.equal(
+    (await db.query("select id from public.chatgpt_keys")).rows.length,
+    0,
+  );
   await page.locator("input[name=rest_calories]").fill("2300");
   await confirm("updateNutritionTargets", {
     request_id: meal().request_id,
@@ -540,12 +583,13 @@ try {
     .locator(".weight-current>strong")
     .filter({ hasText: "99,5" })
     .waitFor();
-  if (process.env.NUTRITION_SCREENSHOT_DIR)
+  if (process.env.NUTRITION_SCREENSHOT_DIR) {
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-  await page.screenshot({
-    path: process.env.NUTRITION_SCREENSHOT_DIR + "/progress-mobile.png",
-    fullPage: true,
-  });
+    await page.screenshot({
+      path: process.env.NUTRITION_SCREENSHOT_DIR + "/progress-mobile.png",
+      fullPage: true,
+    });
+  }
   await page.getByRole("tab", { name: "Ημέρα", exact: true }).click();
   const target = {
     request_id: meal().request_id,
@@ -610,7 +654,7 @@ try {
   assert.equal(await page.locator("input[name=carbs]").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
+    "PASS: retired key UI and cleanup with MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
   );
 } finally {
   await browser?.close();

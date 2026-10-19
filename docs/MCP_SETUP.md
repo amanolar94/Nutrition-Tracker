@@ -26,6 +26,7 @@ In the existing Supabase project's SQL Editor, with `schema.sql` and
 - `supabase/migrations/20261014_direct_mcp_writes.sql`
 - `supabase/migrations/20261019_workout_energy.sql` (workouts and energy balance)
 - `supabase/migrations/20261019_function_privileges.sql` (remove redundant legacy-function grants)
+- `supabase/migrations/20261019_retire_personal_keys.sql` (**last**; retire unused personal-key Actions)
 
 The migration preserves meals/goals and existing user sign-in. Carbs/fat on old
 meals remain NULL (unknown), not invented nutritional values. The UI flags incomplete
@@ -43,7 +44,10 @@ Existing saved calorie/protein goals are preserved. Both target sets are editabl
 OAuth sessions can read only their user's rows, but cannot directly write meal,
 goal, weight or personal-key tables. Direct writes use a transaction RPC with explicit owner checks and a locked,
 user-scoped request_id journal storing retry results. Old drafts remain archived.
-The existing personal-key REST Action remains add-only and separate from MCP.
+The old personal-key REST Action has been retired. `/api/meals` returns HTTP 410;
+the final migration revokes legacy RPC execution and key creation, preserving
+stored data. Existing key metadata can still be viewed/deleted by its owner.
+Do not rerun the older grant migrations after the retirement migration.
 
 ## 2. Enable Supabase OAuth 2.1
 
@@ -128,9 +132,8 @@ must be enabled by the workspace owner. Code cannot modify an unavailable editor
 
 Update the existing plugin skill with `docs/plugin-instructions.md`: the old skill
 says carbs/fat cannot be saved, which is now obsolete. Keep the same plugin identity.
-The old REST GPT Action can remain for compatibility, but use MCP for this workflow
-for the direct-write tools and host confirmation safeguards. Do not put a personal REST key in the
-MCP connection.
+The old REST GPT Action is retired; use the same existing MCP connection and its
+OAuth credentials. No personal key or replacement plugin is needed.
 
 ## 5. Confirmation workflow (single confirmation in ChatGPT)
 

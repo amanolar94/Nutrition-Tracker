@@ -1,34 +1,57 @@
-# Supabase Security Advisor: function permissions
+# Supabase Security Advisor: personal-key Action retirement
 
-The report supplied on 2026-10-19 contains six warnings, not evidence of a confirmed
-compromise. Check the authorization implemented inside each SECURITY DEFINER
-function before changing its grants or execution mode.
+The user confirmed that the old GPT Action with personal keys is no longer used.
+The application now uses the existing OAuth MCP connection for ChatGPT writes.
 
-Apply `supabase/migrations/20261019_function_privileges.sql` after the previous
-ChatGPT/MCP migrations in the existing Supabase SQL Editor. It is repeatable and
-preserves records, keys, accounts, OAuth and mutation receipts. No application
-redeployment is required for this permissions-only migration.
+## Apply the retirement
 
-| Finding | Resolution |
+In the existing Supabase SQL Editor, run
+[`20261019_retire_personal_keys.sql`](../supabase/migrations/20261019_retire_personal_keys.sql)
+**last**, after the earlier ChatGPT/MCP/function-privilege migrations. It revokes
+`PUBLIC`, `anon` and `authenticated` execution of both legacy `add_chatgpt_meal*`
+functions and revokes INSERT/UPDATE on `chatgpt_keys`. Older browser clients also
+lose the ability to create keys. Do not rerun earlier migrations that grant these
+permissions afterwards.
+
+Deploy the same repository through the existing Vercel project. `/api/meals`
+returns **410 Gone** without inspecting credentials/payloads or accessing storage.
+It does not redirect old writes to MCP. The old public Action schema has no
+operations, and its instructions direct users to the existing OAuth MCP connection.
+The site offers no new-key creation; owners can still delete old key metadata.
+
+The migration preserves meals, workouts, weights, goals, maintenance settings,
+personal-key hashes, mutation receipts and OAuth configuration. It does not change
+`write_nutrition`, MCP tools, browser sign-in or ownership policies. No new site,
+plugin, OAuth client or environment variables are required.
+
+## Expected Advisor results
+
+| Finding | Current behavior |
 | --- | --- |
-| `authenticated` can execute `add_chatgpt_meal` and `add_chatgpt_meal_v2` (two warnings) | Removed. `/api/meals` uses a stateless publishable-key client under `anon`; it does not forward a browser JWT. The authenticated-role grants are unnecessary for this supported path. |
-| `anon` can execute `add_chatgpt_meal*` (two warnings) | Intentional for the existing personal-key REST Action. These functions require a valid, unexpired personal `nt_…` key, match its SHA-256 hash and derive ownership from that key. An anonymous Supabase role does not imply an unauthenticated application write. Invalid/expired/revoked keys cannot write; no meal/key table reads are granted. |
-| `authenticated` can execute `write_nutrition` (one warning) | Intentional. This RPC requires `auth.uid()`, scopes every mutation/receipt to that user and prevents duplicate requests. It needs SECURITY DEFINER to access the private journal. `PUBLIC`/`anon` execution stays revoked. Switching to SECURITY INVOKER would break journal-backed writes. |
-| Leaked password protection disabled (one warning) | Enable in the existing Supabase dashboard: Authentication → Settings/Security and Protection → Password Security → Leaked Password Protection (labels may vary). Supabase offers this setting on eligible paid plans; if unavailable on the current plan, the SQL migration cannot enable it. It checks new/changed passwords against known leaks; it does not mean that a leak was detected or that all existing passwords were scanned. |
+| `anon` or `authenticated` can execute `add_chatgpt_meal*` | These warnings should disappear after the final migration. Even a valid old personal key cannot execute either function through those roles. |
+| `authenticated` can execute `write_nutrition` | Intentional and required. The RPC requires `auth.uid()`, checks ownership and uses a private, per-user idempotency journal. `PUBLIC`/`anon` execution remains revoked. SECURITY INVOKER would prevent journal-backed writes. |
+| Leaked Password Protection disabled | Enable separately in Supabase Authentication password/security settings if supported by the current plan. SQL cannot change this Auth setting. It concerns checks of new/changed passwords against known leaks. |
 
-After applying the permissions migration, rerun Security Advisor. The two
-authenticated legacy-function warnings should disappear. The three intentional
-function warnings remain while both supported authentication paths exist. Record
-them as reviewed if the dashboard offers that option; keep their required grants.
-Do not disable the REST functions merely to clear the warning list while clients
-still use personal-key Actions. Retiring that integration is a separate change.
+The original six-warning report was first reduced to four by
+`20261019_function_privileges.sql`, which retained the then-supported REST Action.
+That is a historical migration. The new retirement migration removes the remaining
+two legacy-function warnings, leaving the intentional MCP function warning and,
+if still disabled, the leaked-password warning. This does not establish that the
+whole Supabase project is free from security issues.
 
-The SQL migration cannot change Supabase Auth password settings. This environment
-has no callable Supabase management connector or management credentials, so the
-live migration, Auth setting and refreshed Advisor results require dashboard access.
+## Verification
 
-Verification uses PostgreSQL/PGlite with Supabase-compatible roles and claims:
-function grants/search_path, missing/invalid/expired/revoked keys, real REST handler
-through a SQL-backed adapter, per-user ownership, unauthenticated MCP rejection,
-idempotency, mutation-journal privacy and preservation of existing records/receipts.
-Run `node --test tests/function-privileges.test.js` or `npm test`.
+`npm test`, `npm run build`, `npm run test:browser`.
+
+Tests use PostgreSQL/PGlite with Supabase-compatible roles and claims, the official
+MCP SDK and Chromium with a simulated Supabase HTTP bridge. They cover 410 without
+storage access, legacy RPC denial even with valid keys, prevention of key creation,
+owner-only key cleanup, preserved records/receipts, anonymous rejection, per-user
+isolation and working MCP meal/workout workflows and dashboard updates after the
+retirement migration. The older grant test verifies historical SQL behavior before
+retirement; current behavior is covered in `retire-personal-keys.test.js`.
+
+This environment has no callable Supabase management connector or management
+credentials. Live migration application, password-setting changes and refreshed
+Advisor results require the existing Supabase dashboard. Local tests do not verify
+live OAuth, Vercel publication or ChatGPT host confirmation.

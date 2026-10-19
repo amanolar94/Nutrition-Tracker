@@ -302,6 +302,8 @@ test("official MCP HTTP workout workflow saves once, reads balances, edits and d
   const db = await database();
   await migrate(db, "20261014_direct_mcp_writes.sql");
   await migrate(db, "20261019_workout_energy.sql");
+  await migrate(db, "20261019_function_privileges.sql");
+  await migrate(db, "20261019_retire_personal_keys.sql");
   const handler = makeHandler(async (token) => {
     const user =
       token === "test-user-a" ? userA : token === "test-user-b" ? userB : null;
