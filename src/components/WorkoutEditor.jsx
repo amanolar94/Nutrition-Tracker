@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import Dialog from "./Dialog.jsx";
+import DateInput from "./DateInput.jsx";
 import { number } from "../display.js";
 
 export default function WorkoutEditor({
@@ -83,8 +84,7 @@ export default function WorkoutEditor({
               </label>
               <label>
                 Ημερομηνία προπόνησης
-                <input
-                  type="date"
+                <DateInput
                   name="workout_date"
                   defaultValue={workout?.date || date}
                   required

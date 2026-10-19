@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import Dialog from "./Dialog.jsx";
+import DateInput from "./DateInput.jsx";
 import { categories, metrics } from "../display.js";
 
 // Opening a repeat is a draft only. The submit button is the explicit browser save.
@@ -95,9 +96,8 @@ export default function MealEditor({
             <div className="pair">
               <label>
                 Ημερομηνία
-                <input
+                <DateInput
                   name="date"
-                  type="date"
                   defaultValue={meal?.date || date}
                   required
                 />

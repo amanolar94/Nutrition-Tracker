@@ -275,15 +275,22 @@ main {
 }
 .calendar-picker {
   position: relative;
-  width: 44px;
-  height: 44px;
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 12px;
+  gap: 12px;
   flex-shrink: 0;
   border: 1px solid var(--line);
   border-radius: 12px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  flex-direction: row;
+  justify-content: space-between;
   cursor: pointer;
+}
+.calendar-picker svg {
+  flex-shrink: 0;
 }
 .calendar-picker input {
   position: absolute;
@@ -824,6 +831,31 @@ select {
   color: var(--ink);
   font-size: 16px;
 }
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 48px;
+  padding: 10px 40px 10px 12px;
+  line-height: 1.5;
+  font-weight: 500;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2352675e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px 20px;
+  cursor: pointer;
+}
+select:disabled {
+  background-color: #f0f4f1;
+  color: #657779;
+  cursor: not-allowed;
+}
+@media (forced-colors: active) {
+  select {
+    -webkit-appearance: auto;
+    appearance: auto;
+    background-image: none;
+  }
+}
 input:focus,
 select:focus {
   outline: 2px solid #85b7a5;
@@ -866,11 +898,42 @@ fieldset:disabled {
   color: #a9403c;
 }
 details summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  list-style: none;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   min-height: 44px;
-  align-content: center;
+  line-height: 1.5;
+}
+details summary::-webkit-details-marker {
+  display: none;
+}
+details summary::marker {
+  content: "";
+}
+details summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  margin-inline: 4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+details[open] > summary::after {
+  transform: rotate(225deg);
+}
+details summary:hover {
+  color: var(--green);
+}
+input[type="date"],
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
 }
 .connections {
   margin: 0 0 20px;
@@ -1104,10 +1167,6 @@ footer {
     min-width: 36px;
     min-height: 44px;
     padding: 10px 7px;
-  }
-  .calendar-picker {
-    width: 40px;
-    border: 0;
   }
   .today-button {
     min-height: 32px;
@@ -1376,9 +1435,6 @@ footer {
     width: 44px;
     min-width: 44px;
   }
-  .calendar-picker {
-    width: 44px;
-  }
   .today-button {
     min-height: 44px;
   }
@@ -1561,9 +1617,10 @@ main > section,
   gap: 10px;
 }
 .day-type select {
-  width: auto;
+  width: 10.5rem;
+  flex: 0 1 10.5rem;
   font-size: 16px;
-  padding: 8px 12px;
+  padding: 10px 40px 10px 12px;
 }
 .day-context .data-note {
   margin: 0;
@@ -1955,9 +2012,6 @@ main > section,
   .day-type {
     font-size: 12px;
   }
-  .day-type select {
-    padding-block: 6px;
-  }
   .daily-summary {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
@@ -2068,7 +2122,7 @@ main > section,
 @media (max-width: 700px), (hover: none) and (pointer: coarse) {
   .date-bar {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
     gap: 4px;
   }
   .date-caption strong {

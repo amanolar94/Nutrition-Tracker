@@ -45,3 +45,11 @@ changes, week drilldown, canceling dialogs without writes, manual persistence/de
 MCP record refresh, weights/targets, unsaved-goal preservation and connected-app
 revocation (including failure/retry). Optional screenshots:
 NUTRITION_SCREENSHOT_DIR=/tmp/nutrition-ux npm run test:browser.
+
+Desktop control follow-up: selects reserve room for their arrow and use a pointer
+cursor; native summary sections align their label/chevron on one row. The date
+caption and calendar icon form one click target. Native date inputs use showPicker
+for whole-field clicks and Enter/Space, retaining normal behavior on browsers
+without that API. The browser smoke test exercises actual native picker invocation
+from the desktop date caption, keyboard and workout date field, plus the existing
+mobile/zoom coverage. No migration or MCP connection refresh is required.

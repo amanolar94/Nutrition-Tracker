@@ -297,6 +297,25 @@ try {
   await page.locator("[name=password]").fill("test-password");
   await page.getByRole("button", { name: "Σύνδεση", exact: true }).click();
   await page.getByRole("heading", { name: "Ημερήσια εικόνα" }).waitFor();
+  // Desktop calendar opens from the date text as well as the icon.
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await page.evaluate(() => {
+    const original = HTMLInputElement.prototype.showPicker;
+    window.successfulDatePickers = 0;
+    HTMLInputElement.prototype.showPicker = function () {
+      const result = original.call(this);
+      window.successfulDatePickers++;
+      return result;
+    };
+  });
+  await page.locator(".calendar-picker").click({ position: { x: 12, y: 12 } });
+  assert.equal(await page.evaluate(() => window.successfulDatePickers), 1);
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Ημερομηνία καταγραφής").focus();
+  await page.keyboard.press("Space");
+  assert.equal(await page.evaluate(() => window.successfulDatePickers), 2);
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 320, height: 844 });
   await page.getByLabel("Ημερομηνία καταγραφής").fill("2026-10-14");
   async function confirm(operation, payload) {
     await identity(db, userA);
@@ -353,6 +372,11 @@ try {
   await page
     .getByRole("button", { name: "Προσθήκη προπόνησης", exact: true })
     .click();
+  await page
+    .locator("[name=workout_date]")
+    .click({ position: { x: 12, y: 12 } });
+  assert.equal(await page.evaluate(() => window.successfulDatePickers), 3);
+  await page.keyboard.press("Escape");
   await page.locator("[name=workout_name]").fill("Ποδήλατο χειροκίνητα");
   await page.locator("[name=calories_burned]").fill("250");
   loseNextWorkoutResponse = true;
@@ -975,7 +999,7 @@ try {
   assert.equal(await page.locator("input[name=carbs]").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: saved per-date day types, editable favorites without intake writes, draft repeats/cancel, meal-time editing and lost-response idempotency, diary filters, zoom 50–200%, new migration fallback, simplified account connections, grant revocation failure/retry, no legacy key controls/requests, MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
+    "PASS: desktop calendar opens from whole date field and keyboard (including workout form), saved per-date day types, editable favorites without intake writes, draft repeats/cancel, meal-time editing and lost-response idempotency, diary filters, zoom 50–200%, new migration fallback, simplified account connections, grant revocation failure/retry, no legacy key controls/requests, MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
   );
 } finally {
   await browser?.close();
