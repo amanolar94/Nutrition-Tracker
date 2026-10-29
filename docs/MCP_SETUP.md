@@ -27,7 +27,8 @@ In the existing Supabase project's SQL Editor, with `schema.sql` and
 - `supabase/migrations/20261019_workout_energy.sql` (workouts and energy balance)
 - `supabase/migrations/20261019_function_privileges.sql` (remove redundant legacy-function grants)
 - `supabase/migrations/20261019_retire_personal_keys.sql` (retire unused personal-key Actions)
-- `supabase/migrations/20261020_diary_usability.sql` (**last**; favorites, per-date day types and optional meal time)
+- `supabase/migrations/20261020_diary_usability.sql` (favorites, per-date day types and optional meal time)
+- `supabase/migrations/20261029_repair_workout_writes.sql` (**last**; repair stale RPC and add field diagnostics)
 
 The migration preserves meals/goals and existing user sign-in. Carbs/fat on old
 meals remain NULL (unknown), not invented nutritional values. The UI flags incomplete
@@ -239,3 +240,6 @@ chromium` first; set PLAYWRIGHT_CHROMIUM_EXECUTABLE for a custom browser locatio
 routing or test the existing production deployment. Apply database migrations before using new features. The dashboard falls back to
 legacy meal/goal queries until the new columns/tables exist, keeping old login and
 manual calories/protein entry working. MCP remains unavailable until its migration.
+
+For the confirmed addWorkout database whitelist mismatch and structured errors,
+see [WORKOUT_VALIDATION_FIX.md](WORKOUT_VALIDATION_FIX.md).

@@ -1,0 +1,28 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"Workout validation failed\",\"details\":[{\"path\":\"calories_burned\",\"code\":\"invalid_type\",\"message\":\"Invalid input: expected number, received string\",\"received\":\"string\",\"expected\":\"number\",\"received_length\":3}],\"request_id\":\"f4d7e4bd-6f43-4d9b-a8cb-1ceffbbbe270\",\"correlation_id\":\"6d209e4c-1c06-4e30-87c1-e9ed11d81554\",\"stage\":\"input\"}}"
+    }
+  ],
+  "structuredContent": {
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "Workout validation failed",
+      "details": [
+        {
+          "path": "calories_burned",
+          "code": "invalid_type",
+          "message": "Invalid input: expected number, received string",
+          "received": "string",
+          "expected": "number",
+          "received_length": 3
+        }
+      ],
+      "request_id": "f4d7e4bd-6f43-4d9b-a8cb-1ceffbbbe270",
+      "correlation_id": "6d209e4c-1c06-4e30-87c1-e9ed11d81554",
+      "stage": "input"
+    }
+  },
+  "isError": true
+}

@@ -2,8 +2,17 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  errorContext,
+  validationDetails,
+  toolError,
+  executionError,
+  logDiagnostic,
+  defaultLogger,
+} from "./tool-errors.js";
 import { writes, rangeSchema, dateSchema } from "./schemas.js";
-export const MCP_VERSION = "3.2.0";
+export const MCP_VERSION = "3.2.1";
 const readAnnotations = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -35,7 +44,11 @@ const writeDetails = {
   updateEnergySettings:
     "Set daily maintenance excluding separately logged exercise, or null to clear it. Not BMR, intake target, or exercise-inclusive TDEE. This recalculates historical balances with the new baseline. Never infer this from intake goals.",
 };
-export function makeMcpServer(service) {
+export function makeMcpServer(
+  service,
+  { correlationId, logger = defaultLogger } = {},
+) {
+  const handlers = new Map();
   const server = new McpServer(
     { name: "nutrition-tracker", version: MCP_VERSION },
     {
@@ -44,43 +57,62 @@ export function makeMcpServer(service) {
     },
   );
   function register(name, schema, description, annotations, run) {
+    async function invoke(
+      rawArgs,
+      context = errorContext(name, rawArgs, correlationId),
+    ) {
+      try {
+        const parsed = await schema.safeParseAsync(rawArgs ?? {});
+        if (!parsed.success) {
+          const details = validationDetails(parsed.error.issues, rawArgs);
+          logDiagnostic(logger, context, "input", {
+            name: "ZodError",
+            code: "VALIDATION_ERROR",
+            details: JSON.stringify(details),
+          });
+          return toolError(
+            context,
+            "VALIDATION_ERROR",
+            ["addWorkout", "updateWorkout"].includes(name)
+              ? "Workout validation failed"
+              : "Input validation failed",
+            details,
+            "input",
+          );
+        }
+        const result = await run(parsed.data);
+        if (Array.isArray(result) && result.length > 1000) {
+          logDiagnostic(
+            logger,
+            context,
+            "execution",
+            new Error("Too many records."),
+          );
+          return toolError(
+            context,
+            "RESULT_LIMIT_EXCEEDED",
+            "Too many records. Request a narrower date range.",
+          );
+        }
+        return {
+          content: [{ type: "text", text: JSON.stringify(result) }],
+          structuredContent: { result },
+        };
+      } catch (error) {
+        logDiagnostic(
+          logger,
+          context,
+          error?.code ? "database" : "execution",
+          error,
+        );
+        return executionError(context, error);
+      }
+    }
+    handlers.set(name, invoke);
     server.registerTool(
       name,
       { inputSchema: schema, description, annotations },
-      async (args) => {
-        try {
-          const result = await run(args);
-          if (Array.isArray(result) && result.length > 1000)
-            return {
-              isError: true,
-              content: [
-                {
-                  type: "text",
-                  text: "Too many records. Request a narrower date range.",
-                },
-              ],
-            };
-          return {
-            content: [{ type: "text", text: JSON.stringify(result) }],
-            structuredContent: { result },
-          };
-        } catch (error) {
-          const code = error?.code;
-          const message =
-            code === "42501"
-              ? "Access denied."
-              : ["42P01", "42703", "PGRST204", "PGRST205"].includes(code)
-                ? "Database setup is pending. Apply the latest migrations in the existing Supabase project. No successful storage is confirmed."
-                : code === "22023"
-                  ? "Invalid input."
-                  : code === "23505"
-                    ? "request_id already used for different content."
-                    : code === "P0002"
-                      ? "Record not found in your account."
-                      : "Operation failed. No successful storage is confirmed. Check database setup and retry with the same request_id.";
-          return { isError: true, content: [{ type: "text", text: message }] };
-        }
-      },
+      (args) => invoke(args),
     );
   }
   register(
@@ -153,6 +185,35 @@ export function makeMcpServer(service) {
       (args) => service.write(name, args),
     );
   }
+  // Use the SDK's documented lower-level handler API: its high-level pre-validator
+  // otherwise converts Zod failures to plain text before our callback can format them.
+  // Discovery and execution both use exactly the same strict Zod schemas above.
+  server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const args = request.params.arguments ?? {};
+    const invoke = handlers.get(request.params.name);
+    const context = errorContext(
+      invoke ? request.params.name : "unknown",
+      args,
+      correlationId,
+    );
+    if (!invoke)
+      return toolError(
+        context,
+        "TOOL_NOT_FOUND",
+        "Tool not found.",
+        [],
+        "input",
+      );
+    if (request.params.task)
+      return toolError(
+        context,
+        "INVALID_ARGUMENT",
+        "This tool does not support task execution.",
+        [],
+        "input",
+      );
+    return invoke(args, context);
+  });
   return server;
 }
 

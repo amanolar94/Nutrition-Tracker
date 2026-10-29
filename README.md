@@ -76,3 +76,11 @@ npm run build
 τύπος ημέρας είναι διαθέσιμα και μέσω MCP (20 εργαλεία). Απαιτείται η τελευταία
 προσθετική migration `20261020_diary_usability.sql`.
 [Ενεργοποίηση και νέα εργαλεία](docs/DIARY_USABILITY.md).
+
+## Διόρθωση addWorkout — MCP 3.2.1
+
+Η εγκατεστημένη παλιά write_nutrition μπορούσε να απορρίψει έγκυρες προπονήσεις
+με 22023/Invalid write. Η migration `20261029_repair_workout_writes.sql` επαναφέρει
+τις τρέχουσες λειτουργίες χωρίς αλλαγή αποθηκευμένων δεδομένων. Τα MCP errors πλέον
+επιστρέφουν πεδία επικύρωσης και correlation ID σε JSON.
+[Αιτία, εφαρμογή και δοκιμές](docs/WORKOUT_VALIDATION_FIX.md).

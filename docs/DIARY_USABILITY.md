@@ -69,3 +69,8 @@ Chromium με προσομοιωμένο Supabase HTTP/OAuth. Περιλαμβά
 επεξεργασία/διαγραφή/ανάκληση αγαπημένων, επιλογή ημέρας μετά reload, φίλτρα,
 πλάτη 320–1280 και zoom/reflow. Δεν αντικαθιστούν έλεγχο πραγματικού Safari/iPhone,
 live Supabase OAuth ή την εφαρμογή της migration στο παραγωγικό project.
+
+Νεότερη διόρθωση: [WORKOUT_VALIDATION_FIX.md](WORKOUT_VALIDATION_FIX.md), MCP 3.2.1.
+Αν η εγκατεστημένη write_nutrition έχει τις 5 παλιές λειτουργίες, εφάρμοσε τελευταία
+τη migration 20261029_repair_workout_writes.sql. Δεν αρκεί η έκδοση του MCP server
+για να πιστοποιήσει την έκδοση της συνάρτησης στη βάση.

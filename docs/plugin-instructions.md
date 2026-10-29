@@ -94,3 +94,12 @@ https://nutrition-tracker-gamma-flax.vercel.app/mcp. Keep this same private plug
 use its OAuth MCP connection. The personal-key REST Action is retired: /api/meals
 returns HTTP 410 and must not be used for writes. Never ask to create a personal
 key or fall back to the old Action after an MCP failure.
+
+On tool errors, read the JSON envelope from structuredContent.error or parse the
+TextContent JSON if the host only preserves text. Report the relevant field paths
+and validation issues. DATABASE_SCHEMA_MISMATCH or DATABASE_SETUP_REQUIRED means
+the app's database setup needs repair; do not ask the user to change an already
+valid workout name/date/calorie value to bypass it. Preserve request_id on safe
+retries, include correlation_id when troubleshooting, and never claim successful
+storage after an error or automatically create a replacement mutation. Explicit
+confirmation remains required before every new write.

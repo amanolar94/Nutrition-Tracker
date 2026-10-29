@@ -30,6 +30,7 @@ for (const file of [
   "20261019_function_privileges.sql",
   "20261019_retire_personal_keys.sql",
   "20261020_diary_usability.sql",
+  "20261029_repair_workout_writes.sql",
 ])
   await db.exec(
     await (
