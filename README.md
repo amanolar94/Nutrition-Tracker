@@ -1,89 +1,154 @@
 # Nutrition Tracker
 
-Εφαρμογή React στα ελληνικά για γεύματα, θερμίδες και πρωτεΐνη, με Supabase Auth και Postgres.
+A nutrition and workout tracking application built with React, Supabase Auth and
+PostgreSQL. Log meals and workouts through ChatGPT using a remote MCP server, then
+review your results in a responsive dashboard available in Greek and English.
 
-## Ρύθμιση Supabase
+[Live application](https://nutrition-tracker-gamma-flax.vercel.app/) — sign-in required.
 
-1. Δημιούργησε project στο Supabase.
-2. Εκτέλεσε το `supabase/schema.sql` στον SQL Editor μία φορά. Δημιουργεί πίνακες και Row Level Security: κάθε χρήστης βλέπει και αλλάζει μόνο τις δικές του εγγραφές.
-3. Στο Supabase Authentication → Sign In / Providers → Email ενεργοποίησε Email/password και απενεργοποίησε το Allow new users to sign up. Η εφαρμογή επιτρέπει μόνο σύνδεση υπαρχόντων χρηστών. Δημιούργησε τους λογαριασμούς από Authentication → Users → Add user → Create new user, ορίζοντας email/κωδικό και επιβεβαίωση email όπου χρειάζεται.
-4. Στο Authentication → URL Configuration όρισε το Site URL και επιτρεπόμενο Redirect URL `https://nutrition-tracker-gamma-flax.vercel.app/`. Για ανάπτυξη πρόσθεσε `http://localhost:5173/`.
-5. Αντέγραψε το `.env.example` σε `.env.local`. Συμπλήρωσε το Project URL και το **publishable key** από τις ρυθμίσεις του project. Ποτέ service_role ή secret key στο frontend. Οι μεταβλητές VITE_* είναι δημόσιες και ενσωματώνονται στο build. Στο Vercel όρισέ τες στις Environment Variables.
-6. Επανεκκίνησε τον dev server ή κάνε νέο build μετά από αλλαγή μεταβλητών. Δεν απαιτούνται Google OAuth credentials.
+## Supabase setup
+
+1. Create a Supabase project.
+2. Run `supabase/schema.sql` once in the SQL Editor. It creates the base tables and
+   Row Level Security policies so users can access only their own records. For the
+   current nutrition fields, workouts, favorites and MCP integration, also apply
+   the migrations in the order specified in [MCP_SETUP.md](docs/MCP_SETUP.md).
+   Apply `20261029_repair_workout_writes.sql` last; do not rerun older migrations
+   that replace `write_nutrition` after it.
+3. Under **Authentication → Sign In / Providers → Email**, enable email/password
+   sign-in and disable **Allow new users to sign up**. The application supports
+   sign-in for existing users only. Create accounts under **Authentication → Users
+   → Add user → Create new user**, setting an email and password and confirming
+   the email where needed.
+4. Under **Authentication → URL Configuration**, set the Site URL and allowed
+   redirect URL to `https://nutrition-tracker-gamma-flax.vercel.app/`. Add
+   `http://localhost:5173/` for local development.
+5. Copy `.env.example` to `.env.local` and enter your project URL and **publishable
+   key**. Never put a `service_role` or secret key in the frontend. Variables
+   prefixed with `VITE_` are public and included in the build. Configure the same
+   variables under **Environment Variables** in Vercel.
+6. Restart the development server or rebuild after changing environment variables.
+   Google OAuth credentials are not required for email/password sign-in.
+
+Requires Node.js **22.12+ or 24**.
 
 ```sh
 npm ci --cache /tmp/nutrition-npm-cache
 npm run dev
 ```
 
-Απαιτείται Node.js 22.12+ ή 24.
+`npm run dev` serves the frontend. See the MCP setup guide for serverless API
+routing, backend environment variables and OAuth configuration.
 
-## Έλεγχοι
+## Verification
 
 ```sh
 npm test
 npm run build
+npm run test:browser
 ```
 
-Για τον τελικό έλεγχο με πραγματικό project: συνδέσου με υπάρχοντα λογαριασμό email/κωδικού, πρόσθεσε γεύμα, άλλαξε στόχους και επαναφόρτωσε. Έλεγξε τα ίδια δεδομένα από δεύτερο browser. Με δεύτερο λογαριασμό επιβεβαίωσε ότι δεν φαίνονται τα γεύματα του πρώτου και ότι οι απευθείας αιτήσεις για ξένο user_id απορρίπτονται από RLS.
+For live acceptance testing, sign in with an existing email/password account, add
+a meal, update targets and reload. Check the same data in another browser. Use a
+second account to verify that it cannot read or modify the first account's
+records, including through direct API requests.
 
-## Αποθήκευση
+Local tests use PostgreSQL/PGlite fixtures and simulated Supabase HTTP/OAuth.
+They do not establish that the live ChatGPT connection, Supabase OAuth settings
+or Vercel deployment are configured correctly.
 
-Τα γεύματα και οι στόχοι αποθηκεύονται στη βάση Supabase ανά χρήστη. Η συνεδρία σύνδεσης διατηρείται στον browser από το Supabase SDK. Η σύνδεση γίνεται με email/κωδικό μέσω Supabase Auth. Ο κωδικός αποστέλλεται στο Supabase για έλεγχο και δεν αποθηκεύεται στους πίνακες γευμάτων ή στο localStorage της εφαρμογής.
+## Data storage
 
-Οι παλιές καταγραφές της πρώτης έκδοσης παραμένουν στο localStorage με κλειδί `nutrition-tracker-v1`. Δεν μεταφέρονται αυτόματα σε λογαριασμό και δεν διαγράφονται από αυτή την έκδοση.
+Meals, targets, weight measurements, workouts, maintenance settings, favorites
+and day types are stored per user in Supabase. The Supabase SDK keeps the sign-in
+session in the browser. Email/password authentication is handled by Supabase Auth;
+the password is sent to Supabase for verification and is not stored in meal tables
+or the application's localStorage.
 
-Χωρίς ρυθμισμένο Supabase εμφανίζεται μήνυμα ότι η σύνδεση δεν έχει ενεργοποιηθεί. Οι προεπιλεγμένοι στόχοι είναι ενδεικτικοί και τα διατροφικά στοιχεία εισάγονται χειροκίνητα.
+Records from the first version remain in localStorage under
+`nutrition-tracker-v1`. They are not automatically transferred to an account or
+deleted by the current version.
 
-## Καταγραφή στο ChatGPT
+If Supabase is not configured, the application displays a message that sign-in
+has not been enabled. Default nutrition targets are provisional. Meals can be
+entered through the configured ChatGPT connection or manually in the dashboard.
 
-Η εφαρμογή χρησιμοποιεί την υπάρχουσα σύνδεση Nutrition Tracker μέσω MCP/OAuth.
-Το παλιό GPT Action με προσωπικά κλειδιά έχει αποσυρθεί: το `/api/meals`
-επιστρέφει HTTP 410 και το παλιό OpenAPI αρχείο δεν προσφέρει λειτουργίες εγγραφής.
-Εφάρμοσε τελευταία τη migration `supabase/migrations/20261019_retire_personal_keys.sql`
-για να κλείσουν και τα απευθείας legacy RPCs στο Supabase και η δημιουργία κλειδιών.
-Τα υπάρχοντα γεύματα και τα αποθηκευμένα hashes διατηρούνται. Οι παλιές ρυθμίσεις
-κλειδιών έχουν αφαιρεθεί από το site. Η πρόσβαση εφαρμογών μέσω OAuth ανακαλείται
-από Ρυθμίσεις → Λογαριασμός → Συνδεδεμένες εφαρμογές.
+## Logging through ChatGPT
 
-## Remote MCP στο ίδιο site
+The application uses the existing Nutrition Tracker MCP/OAuth connection.
+The old GPT Action using personal keys has been retired: `/api/meals` returns
+HTTP 410, and the legacy OpenAPI specification no longer exposes write operations.
 
-Το `/mcp` χρησιμοποιεί official MCP SDK / stateless Streamable HTTP και Supabase OAuth 2.1. Περιλαμβάνει γεύματα με όλα τα macros, τροφοδοσία προπόνησης, βάρος και στόχους ανάπαυσης/προπόνησης. Οι εγγραφές MCP απαιτούν ρητή επιβεβαίωση στο ChatGPT χωρίς δεύτερη έγκριση στο dashboard.
+The `supabase/migrations/20261019_retire_personal_keys.sql` migration disables
+legacy Supabase RPCs and personal-key creation. Apply it after the earlier grant
+migrations, followed by the newer diary and workout repair migrations in the
+setup guide. Existing meals and stored key hashes are preserved. Personal-key
+controls have been removed from the website. Revoke OAuth app access under
+**Settings → Account → Connected apps**.
 
-Ακριβή βήματα migration/OAuth/Vercel/σύνδεσης του **υπάρχοντος** plugin και live acceptance checks: [docs/MCP_SETUP.md](docs/MCP_SETUP.md). Input schemas: [docs/mcp-tools.json](docs/mcp-tools.json). Ενημερωμένες οδηγίες του υπάρχοντος plugin: [docs/plugin-instructions.md](docs/plugin-instructions.md).
+## Remote MCP server on the same site
 
-Εφάρμοσε τη νέα migration για να ενεργοποιηθούν τα νέα macros/βάρη/MCP. Μέχρι τότε το dashboard χρησιμοποιεί τα παλιά queries και διατηρεί login, γεύματα και στόχους θερμίδων/πρωτεΐνης. Οι τοπικοί έλεγχοι δεν επιβεβαιώνουν πραγματική σύνδεση ChatGPT/Supabase OAuth.
+The `/mcp` endpoint uses the official MCP SDK, stateless Streamable HTTP and
+Supabase OAuth 2.1. Its 20 tools cover meals with all macronutrients, workout
+fueling, workouts, weight history, favorites, day types and rest/training targets.
+Writes require explicit confirmation in ChatGPT, with no second approval step in
+the dashboard. A per-user `request_id` makes retries idempotent.
 
-Για αναβάθμιση υπάρχοντος MCP χωρίς drafts: [docs/DIRECT_WRITES_UPGRADE.md](docs/DIRECT_WRITES_UPGRADE.md).
+- [Migration, OAuth, Vercel and existing-plugin setup; live acceptance checks](docs/MCP_SETUP.md)
+- [MCP input schemas](docs/mcp-tools.json)
+- [Instructions for the existing plugin](docs/plugin-instructions.md)
+- [Upgrading an existing MCP integration to direct writes without drafts](docs/DIRECT_WRITES_UPGRADE.md)
 
-## Προβολή σε κινητό
+Apply the required migrations to enable the newer fields and tools. While database
+setup is pending, the dashboard falls back to legacy queries to preserve sign-in,
+meal records and calorie/protein targets where supported.
 
-Το dashboard οργανώνεται σε Ημέρα, Εβδομάδα, Πρόοδο και Ρυθμίσεις. Στο κινητό η πλοήγηση βρίσκεται χαμηλά στην οθόνη. Τα γεύματα εμφανίζονται ανά κατηγορία, οι εβδομαδιαίες μπάρες ανοίγουν την αντίστοιχη ημέρα και η χειροκίνητη καταχώριση ανοίγει με το κουμπί +. Σχεδιαστικές επιλογές και έλεγχοι: [docs/UX_NOTES.md](docs/UX_NOTES.md).
+## Mobile dashboard
 
-## Θερμίδες προπόνησης και ισοζύγιο
+The dashboard has **Day**, **Week**, **Progress** and **Settings** views. Mobile
+navigation sits at the bottom of the screen. Meals are grouped by category,
+weekly bars open the corresponding day's diary, and the **+** button opens manual
+entry. See [UX_NOTES.md](docs/UX_NOTES.md) for design choices and verification.
 
-Προσθήκη, διόρθωση και διαγραφή προπονήσεων από ChatGPT/MCP ή το ημερολόγιο, με ενεργές θερμίδες άσκησης. Ημέρα και εβδομάδα εμφανίζουν εκτιμώμενο έλλειμμα/πλεόνασμα σε σχέση με τη συντήρηση χωρίς προπόνηση, ανεξάρτητα από τους στόχους φαγητού. Ημέρες χωρίς γεύματα δεν δημιουργούν τεχνητό έλλειμμα. Απαιτείται η additive migration `20261019_workout_energy.sql` και αποθήκευση συντήρησης από τις Ρυθμίσεις ή το MCP. [Ενεργοποίηση, εργαλεία και υπολογισμοί](docs/WORKOUT_ENERGY.md).
+## Workout calories and energy balance
+
+Add, edit and delete workouts through ChatGPT/MCP or the dashboard, recording
+active exercise calories only. Daily and weekly views show an estimated deficit
+or surplus relative to maintenance excluding logged exercise, independently of
+food intake targets. Days without meals do not create an artificial deficit.
+
+This requires `20261019_workout_energy.sql`, the subsequent migrations and an
+explicitly saved maintenance estimate from Settings or MCP. See
+[WORKOUT_ENERGY.md](docs/WORKOUT_ENERGY.md) for setup, tools and calculations.
 
 ## Supabase Security Advisor
 
-Η migration `20261019_retire_personal_keys.sql` αφαιρεί την πρόσβαση στις παλιές REST functions και τη δημιουργία προσωπικών κλειδιών. Το `write_nutrition` παραμένει διαθέσιμο μόνο σε συνδεδεμένους χρήστες, με έλεγχο ιδιοκτησίας και idempotency. Η αντίστοιχη προειδοποίηση SECURITY DEFINER είναι αναμενόμενη. Η προστασία διαρρεύσαντων κωδικών ενεργοποιείται ξεχωριστά στο Supabase Auth. [Ερμηνεία ευρημάτων και βήματα](docs/SECURITY_ADVISOR.md).
+The `20261019_retire_personal_keys.sql` migration removes access to the legacy
+REST functions and disables personal-key creation. `write_nutrition` remains
+available only to authenticated users, with ownership checks and idempotency.
+Its associated SECURITY DEFINER warning is expected. Leaked password protection
+is enabled separately in Supabase Auth. See
+[SECURITY_ADVISOR.md](docs/SECURITY_ADVISOR.md) for findings and configuration steps.
 
-## Ημερολόγιο και κινητά — MCP 3.2.0
+## Diary and favorites — MCP 3.2.0
 
-Συμπαγής σύνοψη, ημερήσιο/εβδομαδιαίο ισοζύγιο, φίλτρα γευμάτων, προαιρετική ώρα,
-επεξεργασία, αγαπημένα και επανάληψη με έλεγχο πριν από την αποθήκευση. Τύπος
-ημέρας ανά ημερομηνία και στόχοι ανάπαυσης/προπόνησης μαζί. Τα αγαπημένα και ο
-τύπος ημέρας είναι διαθέσιμα και μέσω MCP (20 εργαλεία). Απαιτείται η τελευταία
-προσθετική migration `20261020_diary_usability.sql`.
-[Ενεργοποίηση και νέα εργαλεία](docs/DIARY_USABILITY.md).
+The diary includes a compact overview, daily/weekly energy balance, meal filters,
+optional meal times, editing, favorites and repeat-meal drafts for review before
+saving. Day types are stored per date, and rest/training targets can be compared
+side by side. Favorites and day types are also available through MCP.
 
-## Διόρθωση addWorkout — MCP 3.2.1
+These features require `20261020_diary_usability.sql`, followed by the latest
+workout repair migration. See [DIARY_USABILITY.md](docs/DIARY_USABILITY.md) for
+activation instructions and tool details.
 
-Η εγκατεστημένη παλιά write_nutrition μπορούσε να απορρίψει έγκυρες προπονήσεις
-με 22023/Invalid write. Η migration `20261029_repair_workout_writes.sql` επαναφέρει
-τις τρέχουσες λειτουργίες χωρίς αλλαγή αποθηκευμένων δεδομένων. Τα MCP errors πλέον
-επιστρέφουν πεδία επικύρωσης και correlation ID σε JSON.
-[Αιτία, εφαρμογή και δοκιμές](docs/WORKOUT_VALIDATION_FIX.md).
+## addWorkout repair — MCP 3.2.1
+
+An outdated `write_nutrition` function could reject valid workouts with
+`22023 / Invalid write`. The `20261029_repair_workout_writes.sql` migration restores
+the current operations while preserving stored data. MCP errors now return
+structured validation details and a correlation ID in JSON. See
+[WORKOUT_VALIDATION_FIX.md](docs/WORKOUT_VALIDATION_FIX.md) for the confirmed cause,
+repair instructions and test results.
 
 ## Greek / English
 
@@ -91,4 +156,5 @@ Switch with **EN / EL** in the header, sign-in screens or forms. The language is
 remembered on each device. All dashboard views, forms, errors, OAuth consent and
 privacy information are available in English. Dates and numbers follow the
 selected locale; saved data and the Europe/Athens tracking calendar stay the same.
-No database migration is needed. [Translation guide and tests](docs/LANGUAGES.md).
+No database migration is needed for language support. See
+[LANGUAGES.md](docs/LANGUAGES.md) for the translation guide and tests.
