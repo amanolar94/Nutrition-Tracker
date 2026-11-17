@@ -1,6 +1,9 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React from "react";
 import { number, dateLabel } from "../display.js";
 export default function ProgressView({ weights }) {
+  useLanguage();
   const latest = weights.at(-1),
     first = weights[0],
     delta = latest && first ? latest.weight_kg - first.weight_kg : 0,
@@ -18,7 +21,7 @@ export default function ProgressView({ weights }) {
   return (
     <>
       <section className="panel weight-current">
-        <p className="eyebrow">ΤΕΛΕΥΤΑΙΑ ΜΕΤΡΗΣΗ</p>
+        <p className="eyebrow">{t("ΤΕΛΕΥΤΑΙΑ ΜΕΤΡΗΣΗ")}</p>
         {latest ? (
           <>
             <strong>
@@ -34,30 +37,38 @@ export default function ProgressView({ weights }) {
             {weights.length > 1 && (
               <div className="weight-change">
                 {delta > 0 ? "+" : ""}
-                {number(delta)} kg από την πρώτη καταγεγραμμένη μέτρηση
+                {number(delta)}
+                {t(" kg από την πρώτη καταγεγραμμένη μέτρηση")}
               </div>
             )}
           </>
         ) : (
           <div className="empty">
-            <h2>Ξεκίνα την παρακολούθηση βάρους</h2>
+            <h2>{t("Ξεκίνα την παρακολούθηση βάρους")}</h2>
             <p>
-              Πες στο ChatGPT το βάρος και την ημερομηνία σου και επιβεβαίωσε
-              την καταγραφή.
+              {t(
+                "Πες στο ChatGPT το βάρος και την ημερομηνία σου και επιβεβαίωσε την καταγραφή.",
+              )}
             </p>
           </div>
         )}
       </section>
       {weights.length > 1 && (
         <section className="panel weight-chart">
-          <h2>Πορεία βάρους</h2>
+          <h2>{t("Πορεία βάρους")}</h2>
           <p className="muted">
-            Καταγεγραμμένες μετρήσεις · {number(min)} έως {number(max)} kg
+            {t("Καταγεγραμμένες μετρήσεις · ")}
+            {number(min)}
+            {t(" έως ")}
+            {number(max)} kg
           </p>
           <svg
             viewBox="0 0 280 140"
             role="img"
-            aria-label={`Πορεία από ${number(first.weight_kg)} σε ${number(latest.weight_kg)} κιλά`}
+            aria-label={t("Πορεία από {v0} σε {v1} κιλά", {
+              v0: number(first.weight_kg),
+              v1: number(latest.weight_kg),
+            })}
           >
             <path
               d="M16 116H264M16 36H264"
@@ -79,16 +90,22 @@ export default function ProgressView({ weights }) {
           </svg>
           <div className="chart-dates">
             <span>
-              {dateLabel(first.date, { day: "numeric", month: "short" })}
+              {dateLabel(first.date, {
+                day: "numeric",
+                month: "short",
+              })}
             </span>
             <span>
-              {dateLabel(latest.date, { day: "numeric", month: "short" })}
+              {dateLabel(latest.date, {
+                day: "numeric",
+                month: "short",
+              })}
             </span>
           </div>
         </section>
       )}
       <section className="panel weight-history">
-        <h2>Οι μετρήσεις σου</h2>
+        <h2>{t("Οι μετρήσεις σου")}</h2>
         {weights.length ? (
           <ul>
             {weights
@@ -108,14 +125,17 @@ export default function ProgressView({ weights }) {
               ))}
           </ul>
         ) : (
-          <p className="muted">Δεν έχουν αποθηκευτεί μετρήσεις ακόμη.</p>
+          <p className="muted">{t("Δεν έχουν αποθηκευτεί μετρήσεις ακόμη.")}</p>
         )}
         {weights.length > 30 && (
-          <p className="data-note">Εμφανίζονται οι τελευταίες 30 μετρήσεις.</p>
+          <p className="data-note">
+            {t("Εμφανίζονται οι τελευταίες 30 μετρήσεις.")}
+          </p>
         )}
         <p className="data-note">
-          Αρχικό βάρος αναφοράς: 100 kg. Η μεταβολή υπολογίζεται από τις
-          πραγματικές καταγραφές σου.
+          {t(
+            "Αρχικό βάρος αναφοράς: 100 kg. Η μεταβολή υπολογίζεται από τις πραγματικές καταγραφές σου.",
+          )}
         </p>
       </section>
     </>

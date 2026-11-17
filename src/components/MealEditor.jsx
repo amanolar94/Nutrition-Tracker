@@ -1,3 +1,5 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React, { useRef, useState } from "react";
 import Dialog from "./Dialog.jsx";
 import DateInput from "./DateInput.jsx";
@@ -15,6 +17,7 @@ export default function MealEditor({
   onClose,
   onSave,
 }) {
+  useLanguage();
   const source = meal || template;
   const [error, setError] = useState("");
   const receipt = useRef(null);
@@ -22,20 +25,24 @@ export default function MealEditor({
     <Dialog
       title={
         favorite
-          ? "Επεξεργασία αγαπημένου"
+          ? t("Επεξεργασία αγαπημένου")
           : meal
-            ? "Επεξεργασία γεύματος"
+            ? t("Επεξεργασία γεύματος")
             : template
-              ? "Επανάληψη γεύματος"
-              : "Χειροκίνητη καταχώριση"
+              ? t("Επανάληψη γεύματος")
+              : t("Χειροκίνητη καταχώριση")
       }
       busy={busy}
       onClose={onClose}
     >
       <p className="muted">
         {favorite
-          ? "Οι αλλαγές αφορούν το αγαπημένο. Οι προηγούμενες καταγραφές διατηρούνται."
-          : "Έλεγξε τις ποσότητες και τις τιμές για ολόκληρο το γεύμα πριν αποθηκεύσεις."}
+          ? t(
+              "Οι αλλαγές αφορούν το αγαπημένο. Οι προηγούμενες καταγραφές διατηρούνται.",
+            )
+          : t(
+              "Έλεγξε τις ποσότητες και τις τιμές για ολόκληρο το γεύμα πριν αποθηκεύσεις.",
+            )}
       </p>
       <form
         onSubmit={async (e) => {
@@ -57,12 +64,18 @@ export default function MealEditor({
           if (favorite) payload.template_id = template.id;
           const content = JSON.stringify(payload);
           if (receipt.current?.content !== content)
-            receipt.current = { content, id: crypto.randomUUID() };
+            receipt.current = {
+              content,
+              id: crypto.randomUUID(),
+            };
           setError("");
           if (
             !(await onSave(
               favorite ? "saveMealTemplate" : meal ? "updateMeal" : "addMeal",
-              { request_id: receipt.current.id, ...payload },
+              {
+                request_id: receipt.current.id,
+                ...payload,
+              },
             ))
           )
             setError(
@@ -72,7 +85,7 @@ export default function MealEditor({
       >
         <fieldset disabled={busy}>
           <label>
-            Όνομα γεύματος
+            {t("Όνομα γεύματος")}
             <input
               name="name"
               defaultValue={source?.name || ""}
@@ -82,20 +95,23 @@ export default function MealEditor({
             />
           </label>
           <label>
-            Κατηγορία
+            {t("Κατηγορία")}
             <select
               name="category"
+              aria-label={t("Κατηγορία")}
               defaultValue={source?.category || categories[0]}
             >
               {(legacy ? categories.slice(0, 4) : categories).map((c) => (
-                <option key={c}>{c}</option>
+                <option key={c} value={c}>
+                  {t(c)}
+                </option>
               ))}
             </select>
           </label>
           {!favorite && (
             <div className="pair">
               <label>
-                Ημερομηνία
+                {t("Ημερομηνία")}
                 <DateInput
                   name="date"
                   defaultValue={meal?.date || date}
@@ -104,7 +120,7 @@ export default function MealEditor({
               </label>
               {!legacy && timeEnabled && (
                 <label>
-                  Ώρα (προαιρετική)
+                  {t("Ώρα (προαιρετική)")}
                   <input
                     name="meal_time"
                     type="time"
@@ -118,7 +134,7 @@ export default function MealEditor({
             {(legacy ? metrics.slice(0, 2) : metrics).map(
               ([key, label, unit]) => (
                 <label key={key}>
-                  {label} ({unit})
+                  {t(label)} ({unit})
                   <input
                     name={key}
                     type="number"
@@ -135,17 +151,17 @@ export default function MealEditor({
           </div>
           {error && (
             <p className="form-feedback error" role="alert">
-              {error}
+              {t(error)}
             </p>
           )}
           <button className="primary" type="submit">
             {busy
-              ? "Αποθήκευση…"
+              ? t("Αποθήκευση…")
               : favorite
-                ? "Αποθήκευση αγαπημένου"
+                ? t("Αποθήκευση αγαπημένου")
                 : meal
-                  ? "Αποθήκευση αλλαγών"
-                  : "Αποθήκευση γεύματος"}
+                  ? t("Αποθήκευση αλλαγών")
+                  : t("Αποθήκευση γεύματος")}
           </button>
         </fieldset>
       </form>

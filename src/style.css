@@ -2165,3 +2165,23 @@ select {
 .balance-compact .balance-value {
   flex-wrap: wrap;
 }
+
+/* Language remains available before sign-in and while editing a draft. */
+.language-button {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  flex-shrink: 0;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+.auth-language {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+.dialog-header h2 {
+  flex: 1;
+  min-width: 0;
+}

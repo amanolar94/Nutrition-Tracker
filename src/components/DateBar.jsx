@@ -1,3 +1,5 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React from "react";
 import { localDate } from "../nutrition.js";
 import { dateLabel, relativeDay, shiftDate } from "../display.js";
@@ -5,6 +7,7 @@ import { weekBounds } from "../summaries.js";
 import Icon from "./Icons.jsx";
 import DateInput from "./DateInput.jsx";
 export default function DateBar({ date, onChange, weekly = false }) {
+  useLanguage();
   const today = localDate(),
     week = weekBounds(date),
     current = weekly
@@ -13,11 +16,11 @@ export default function DateBar({ date, onChange, weekly = false }) {
   return (
     <section
       className="date-bar"
-      aria-label={weekly ? "Επιλογή εβδομάδας" : "Επιλογή ημέρας"}
+      aria-label={weekly ? t("Επιλογή εβδομάδας") : t("Επιλογή ημέρας")}
     >
       <button
         className="icon-button"
-        aria-label={weekly ? "Προηγούμενη εβδομάδα" : "Προηγούμενη ημέρα"}
+        aria-label={weekly ? t("Προηγούμενη εβδομάδα") : t("Προηγούμενη ημέρα")}
         onClick={() => onChange(shiftDate(date, weekly ? -7 : -1))}
       >
         <Icon name="left" />
@@ -26,7 +29,13 @@ export default function DateBar({ date, onChange, weekly = false }) {
         <span className="date-caption">
           <strong>
             {weekly
-              ? `${dateLabel(week.start_date, { day: "numeric", month: "short" })} – ${dateLabel(week.end_date, { day: "numeric", month: "short" })}`
+              ? `${dateLabel(week.start_date, {
+                  day: "numeric",
+                  month: "short",
+                })} – ${dateLabel(week.end_date, {
+                  day: "numeric",
+                  month: "short",
+                })}`
               : relativeDay(date, today)}
           </strong>
           <span>
@@ -43,7 +52,7 @@ export default function DateBar({ date, onChange, weekly = false }) {
         </span>
         <Icon name="week" />
         <DateInput
-          aria-label="Ημερομηνία καταγραφής"
+          aria-label={t("Ημερομηνία καταγραφής")}
           value={date}
           required
           onChange={(e) => e.target.value && onChange(e.target.value)}
@@ -51,14 +60,14 @@ export default function DateBar({ date, onChange, weekly = false }) {
       </label>
       <button
         className="icon-button"
-        aria-label={weekly ? "Επόμενη εβδομάδα" : "Επόμενη ημέρα"}
+        aria-label={weekly ? t("Επόμενη εβδομάδα") : t("Επόμενη ημέρα")}
         onClick={() => onChange(shiftDate(date, weekly ? 7 : 1))}
       >
         <Icon name="right" />
       </button>
       {!current && (
         <button className="today-button" onClick={() => onChange(today)}>
-          {weekly ? "Τρέχουσα εβδομάδα" : "Σήμερα"}
+          {weekly ? t("Τρέχουσα εβδομάδα") : t("Σήμερα")}
         </button>
       )}
     </section>

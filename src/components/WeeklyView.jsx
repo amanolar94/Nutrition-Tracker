@@ -1,14 +1,17 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React from "react";
 import { metrics, number, dateLabel } from "../display.js";
 import EnergyBalance from "./EnergyBalance.jsx";
 const signed = (n) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${number(Math.abs(n))}`;
 const missingLabel = (d) =>
   d.energy_balance.unavailable_reason === "future_date"
-    ? "Μελλοντική ημέρα"
+    ? t("Μελλοντική ημέρα")
     : !d.meal_count
-      ? "Χωρίς δεδομένα"
-      : "Όρισε συντήρηση";
+      ? t("Χωρίς δεδομένα")
+      : t("Όρισε συντήρηση");
 export default function WeeklyView({ weekly, onDay, onSettings }) {
+  useLanguage();
   const max = Math.max(
     1,
     ...weekly.daily.map((d) =>
@@ -20,11 +23,12 @@ export default function WeeklyView({ weekly, onDay, onSettings }) {
       <section className="panel weekly weekly-balances">
         <div className="section-title">
           <div>
-            <p className="eyebrow">ΔΕΥΤΕΡΑ – ΚΥΡΙΑΚΗ</p>
-            <h2>Το ισοζύγιο της εβδομάδας</h2>
+            <p className="eyebrow">{t("ΔΕΥΤΕΡΑ – ΚΥΡΙΑΚΗ")}</p>
+            <h2>{t("Το ισοζύγιο της εβδομάδας")}</h2>
           </div>
           <span className="badge">
-            {weekly.recorded_days}/7 ημέρες με καταγραφές
+            {weekly.recorded_days}
+            {t("/7 ημέρες με καταγραφές")}
           </span>
         </div>
         <EnergyBalance
@@ -36,18 +40,18 @@ export default function WeeklyView({ weekly, onDay, onSettings }) {
         <div className="balance-legend">
           <span>
             <i className="deficit-dot" />
-            Έλλειμμα −
+            {t("Έλλειμμα −")}
           </span>
           <span>
             <i className="surplus-dot" />
-            Πλεόνασμα +
+            {t("Πλεόνασμα +")}
           </span>
-          <span>— Χωρίς εκτίμηση</span>
+          <span>{t("— Χωρίς εκτίμηση")}</span>
         </div>
         <div
           className="week-bars balance-chart"
           role="group"
-          aria-label="Εκτιμώμενο ενεργειακό ισοζύγιο εβδομάδας"
+          aria-label={t("Εκτιμώμενο ενεργειακό ισοζύγιο εβδομάδας")}
         >
           {weekly.daily.map((d) => {
             const balance = d.energy_balance.balance_calories;
@@ -58,7 +62,11 @@ export default function WeeklyView({ weekly, onDay, onSettings }) {
                 className={`day-bar ${balance === null ? "unavailable" : balance < 0 ? "deficit" : "surplus"}`}
                 key={d.date}
                 onClick={() => onDay(d.date)}
-                aria-label={`${dateLabel(d.date, { weekday: "long", day: "numeric", month: "long" })}: ${d.meal_count ? number(d.totals.calories) + " kcal πρόσληψη" : "Χωρίς δεδομένα"}, ${label}`}
+                aria-label={`${dateLabel(d.date, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}: ${d.meal_count ? number(d.totals.calories) + t(" kcal πρόσληψη") : t("Χωρίς δεδομένα")}, ${label}`}
               >
                 <span className="bar-value">
                   {balance === null ? "—" : signed(balance)}
@@ -70,25 +78,39 @@ export default function WeeklyView({ weekly, onDay, onSettings }) {
                       className="balance-bar"
                       style={{
                         height: `${Math.max(2, (Math.abs(balance) / max) * 48)}%`,
-                        ...(balance < 0 ? { top: "50%" } : { bottom: "50%" }),
+                        ...(balance < 0
+                          ? {
+                              top: "50%",
+                            }
+                          : {
+                              bottom: "50%",
+                            }),
                       }}
                     />
                   )}
                 </span>
-                <b>{dateLabel(d.date, { weekday: "short" })}</b>
+                <b>
+                  {dateLabel(d.date, {
+                    weekday: "short",
+                  })}
+                </b>
                 <small>
-                  {dateLabel(d.date, { day: "numeric", month: "numeric" })}
+                  {dateLabel(d.date, {
+                    day: "numeric",
+                    month: "numeric",
+                  })}
                 </small>
               </button>
             );
           })}
         </div>
         <p className="data-note">
-          Εκτίμηση από τις καταγραφές σου. Οι ημέρες χωρίς γεύματα και οι
-          μελλοντικές ημέρες εξαιρούνται από το ισοζύγιο.
+          {t(
+            "Εκτίμηση από τις καταγραφές σου. Οι ημέρες χωρίς γεύματα και οι μελλοντικές ημέρες εξαιρούνται από το ισοζύγιο.",
+          )}
         </p>
         <details className="week-details">
-          <summary>Ανάλυση ανά ημέρα</summary>
+          <summary>{t("Ανάλυση ανά ημέρα")}</summary>
           <ul>
             {weekly.daily.map((d) => (
               <li key={d.date}>
@@ -100,11 +122,16 @@ export default function WeeklyView({ weekly, onDay, onSettings }) {
                         day: "numeric",
                         month: "numeric",
                       })}{" "}
-                      · {d.day_type === "training" ? "Προπόνηση" : "Ανάπαυση"}
+                      ·{" "}
+                      {d.day_type === "training"
+                        ? t("Προπόνηση")
+                        : t("Ανάπαυση")}
                     </b>
                     <small>
-                      Φαγητό {d.meal_count ? number(d.totals.calories) : "—"} ·
-                      Προπόνηση {number(d.energy_balance.workout_calories)} kcal
+                      {t("Φαγητό ")}
+                      {d.meal_count ? number(d.totals.calories) : "—"}
+                      {t(" · Προπόνηση ")}
+                      {number(d.energy_balance.workout_calories)} kcal
                     </small>
                   </span>
                   <strong>
@@ -119,35 +146,38 @@ export default function WeeklyView({ weekly, onDay, onSettings }) {
         </details>
       </section>
       <section className="panel weekly-nutrition">
-        <h2>Η διατροφή σε αριθμούς</h2>
+        <h2>{t("Η διατροφή σε αριθμούς")}</h2>
         <div className="weekly-grid">
           {metrics.map(([key, label, unit]) => (
             <article key={key} className="week-metric">
-              <h3>{label}</h3>
+              <h3>{t(label)}</h3>
               <strong>
                 {number(weekly.totals[key])}
                 <small> {unit}</small>
               </strong>
               <p>
-                Μ.Ο.{" "}
+                {t("Μ.Ο.")}{" "}
                 <b>
                   {weekly.recorded_day_average[key] === null
                     ? "—"
                     : number(weekly.recorded_day_average[key])}{" "}
                   {unit}
                 </b>{" "}
-                / ημέρα με καταγραφές
+                {t("/ ημέρα με καταγραφές")}
               </p>
             </article>
           ))}
         </div>
         <p className="data-note">
-          Μέσος όρος στις {weekly.recorded_days} ημέρες με γεύματα. Οι ελλιπείς
-          ημερήσιες καταγραφές επηρεάζουν τον μέσο όρο.
+          {t("Μέσος όρος στις ")}
+          {weekly.recorded_days}
+          {t(
+            " ημέρες με γεύματα. Οι ελλιπείς ημερήσιες καταγραφές επηρεάζουν τον μέσο όρο.",
+          )}
         </p>
         {weekly.incomplete_macro_records > 0 && (
           <p className="data-note">
-            Υπάρχουν γεύματα με άγνωστα macros· τα σύνολα είναι ελλιπή.
+            {t("Υπάρχουν γεύματα με άγνωστα macros· τα σύνολα είναι ελλιπή.")}
           </p>
         )}
         <details className="week-details">
@@ -157,7 +187,7 @@ export default function WeeklyView({ weekly, onDay, onSettings }) {
           <dl className="nutrition-list">
             {metrics.map(([key, label, unit]) => (
               <div key={key}>
-                <dt>{label}</dt>
+                <dt>{t(label)}</dt>
                 <dd>
                   {number(weekly.workout_fueling[key])} {unit}
                 </dd>
@@ -165,7 +195,7 @@ export default function WeeklyView({ weekly, onDay, onSettings }) {
             ))}
           </dl>
           <p className="data-note">
-            Περιλαμβάνεται ήδη στα σύνολα της εβδομάδας.
+            {t("Περιλαμβάνεται ήδη στα σύνολα της εβδομάδας.")}
           </p>
         </details>
       </section>

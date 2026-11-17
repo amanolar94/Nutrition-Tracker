@@ -1,3 +1,5 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React, { useRef, useState } from "react";
 import Dialog from "./Dialog.jsx";
 import Icon from "./Icons.jsx";
@@ -11,8 +13,8 @@ export const templateFields = (meal) =>
   );
 export const matchingTemplate = (meal, templates) =>
   templates.some(
-    (t) =>
-      JSON.stringify(templateFields(t)) ===
+    (template) =>
+      JSON.stringify(templateFields(template)) ===
       JSON.stringify(templateFields(meal)),
   );
 export default function MealLibrary({
@@ -23,57 +25,73 @@ export default function MealLibrary({
   onEdit,
   onDelete,
 }) {
+  useLanguage();
   const [removing, setRemoving] = useState(null),
     [error, setError] = useState("");
   const receipt = useRef(null);
   return (
-    <Dialog title="Τα αγαπημένα σου γεύματα" onClose={onClose} busy={busy} wide>
+    <Dialog
+      title={t("Τα αγαπημένα σου γεύματα")}
+      onClose={onClose}
+      busy={busy}
+      wide
+    >
       <p className="muted">
-        Ανάκαλεσέ τα και στο ChatGPT, π.χ. «το συνηθισμένο πρωινό μου». Κάθε
-        επανάληψη ξεκινά ως πρόχειρο για έλεγχο.
+        {t(
+          "Ανάκαλεσέ τα και στο ChatGPT, π.χ. «το συνηθισμένο πρωινό μου». Κάθε επανάληψη ξεκινά ως πρόχειρο για έλεγχο.",
+        )}
       </p>
       {!templates.length ? (
         <div className="empty">
           <Icon name="star" width="32" height="32" />
-          <h3>Κράτησε όσα τρως συχνά</h3>
+          <h3>{t("Κράτησε όσα τρως συχνά")}</h3>
           <p>
-            Πάτησε το αστέρι σε ένα γεύμα ή ζήτησε από το ChatGPT να το
-            αποθηκεύσει στα αγαπημένα.
+            {t(
+              "Πάτησε το αστέρι σε ένα γεύμα ή ζήτησε από το ChatGPT να το αποθηκεύσει στα αγαπημένα.",
+            )}
           </p>
         </div>
       ) : (
         <ul className="template-grid">
-          {templates.map((t) => (
-            <li className="template-card" key={t.id}>
-              <span className="badge">{t.category}</span>
-              <h3>{t.name}</h3>
+          {templates.map((template) => (
+            <li className="template-card" key={template.id}>
+              <span className="badge">{t(template.category)}</span>
+              <h3>{template.name}</h3>
               <p>
-                <b>{number(t.calories)} kcal</b> · Π {number(t.protein)} · Υ{" "}
-                {number(t.carbs)} · Λ {number(t.fat)} g
+                <b>{number(template.calories)} kcal</b>
+                {t(" · Π ")}
+                {number(template.protein)}
+                {t(" · Υ")} {number(template.carbs)}
+                {t(" · Λ ")}
+                {number(template.fat)} g
               </p>
               <div className="template-actions">
                 <button
                   className="secondary"
                   disabled={busy}
-                  onClick={() => onRepeat(t)}
+                  onClick={() => onRepeat(template)}
                 >
                   <Icon name="plus" />
-                  Επανάληψη
+                  {t("Επανάληψη")}
                 </button>
                 <button
                   className="icon-button"
-                  aria-label={`Επεξεργασία αγαπημένου ${t.name}`}
+                  aria-label={t("Επεξεργασία αγαπημένου {v0}", {
+                    v0: template.name,
+                  })}
                   disabled={busy}
-                  onClick={() => onEdit(t)}
+                  onClick={() => onEdit(template)}
                 >
                   <Icon name="edit" />
                 </button>
                 <button
                   className="icon-button"
-                  aria-label={`Αφαίρεση αγαπημένου ${t.name}`}
+                  aria-label={t("Αφαίρεση αγαπημένου {v0}", {
+                    v0: template.name,
+                  })}
                   disabled={busy}
                   onClick={() => {
-                    setRemoving(t);
+                    setRemoving(template);
                     setError("");
                     receipt.current = crypto.randomUUID();
                   }}
@@ -89,15 +107,16 @@ export default function MealLibrary({
         <div
           className="library-confirm"
           role="group"
-          aria-label="Επιβεβαίωση αφαίρεσης αγαπημένου"
+          aria-label={t("Επιβεβαίωση αφαίρεσης αγαπημένου")}
         >
           <p>
-            Να αφαιρεθεί το <b>{removing.name}</b> από τα αγαπημένα; Τα
-            καταγεγραμμένα γεύματα διατηρούνται.
+            {t("Να αφαιρεθεί το ")}
+            <b>{removing.name}</b>
+            {t(" από τα αγαπημένα; Τα καταγεγραμμένα γεύματα διατηρούνται.")}
           </p>
           {error && (
             <p role="alert" className="form-feedback error">
-              {error}
+              {t(error)}
             </p>
           )}
           <div className="dialog-actions">
@@ -106,7 +125,7 @@ export default function MealLibrary({
               disabled={busy}
               onClick={() => setRemoving(null)}
             >
-              Ακύρωση
+              {t("Ακύρωση")}
             </button>
             <button
               className="danger"
@@ -122,7 +141,7 @@ export default function MealLibrary({
                 else setError("Δεν επιβεβαιώθηκε η αφαίρεση. Δοκίμασε ξανά.");
               }}
             >
-              Αφαίρεση αγαπημένου
+              {t("Αφαίρεση αγαπημένου")}
             </button>
           </div>
         </div>

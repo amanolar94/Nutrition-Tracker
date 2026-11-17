@@ -1,6 +1,9 @@
+import { t } from "./i18n.js";
+import { useLanguage } from "./i18n-react.jsx";
 import React, { useEffect, useState } from "react";
 import { supabase } from "./backend.js";
 export default function OAuthConnections() {
+  useLanguage();
   const [grants, setGrants] = useState([]),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
@@ -31,7 +34,9 @@ export default function OAuthConnections() {
     setBusy(true);
     setMessage("");
     try {
-      const { error } = await supabase.auth.oauth.revokeGrant({ clientId });
+      const { error } = await supabase.auth.oauth.revokeGrant({
+        clientId,
+      });
       if (error) throw error;
       setGrants((previous) => previous.filter((g) => g.client.id !== clientId));
       setMessage("Η πρόσβαση της εφαρμογής αφαιρέθηκε.");
@@ -44,26 +49,28 @@ export default function OAuthConnections() {
   if (!grants.length && !message) return null;
   return (
     <details className="connections">
-      <summary>Συνδεδεμένες εφαρμογές</summary>
+      <summary>{t("Συνδεδεμένες εφαρμογές")}</summary>
       <p className="data-note">
-        Διαχειρίσου τις εφαρμογές που έχουν πρόσβαση στα δεδομένα σου.
+        {t("Διαχειρίσου τις εφαρμογές που έχουν πρόσβαση στα δεδομένα σου.")}
       </p>
       {grants.map((g) => (
         <div className="grant" key={g.client.id}>
-          <span>{g.client.name || "Εφαρμογή"}</span>
+          <span>{g.client.name || t("Εφαρμογή")}</span>
           <button
             className="secondary"
             disabled={busy}
             onClick={() => revoke(g.client.id)}
-            aria-label={`Αφαίρεση πρόσβασης ${g.client.name || "εφαρμογής"}`}
+            aria-label={t("Αφαίρεση πρόσβασης {v0}", {
+              v0: g.client.name || t("εφαρμογής"),
+            })}
           >
-            Αφαίρεση πρόσβασης
+            {t("Αφαίρεση πρόσβασης")}
           </button>
         </div>
       ))}
       {message && (
         <p role="status" className="data-note">
-          {message}
+          {t(message)}
         </p>
       )}
     </details>

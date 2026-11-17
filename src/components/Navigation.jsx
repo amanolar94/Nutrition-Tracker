@@ -1,3 +1,5 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React from "react";
 import Icon from "./Icons.jsx";
 export const views = [
@@ -12,9 +14,10 @@ export function initialView() {
     : "day";
 }
 export default function Navigation({ view, onChange }) {
+  useLanguage();
   return (
-    <nav className="view-nav" aria-label="Κύρια πλοήγηση">
-      <div role="tablist" aria-label="Προβολές διατροφής">
+    <nav className="view-nav" aria-label={t("Κύρια πλοήγηση")}>
+      <div role="tablist" aria-label={t("Προβολές διατροφής")}>
         {views.map(([key, label], i) => (
           <button
             key={key}
@@ -43,7 +46,7 @@ export default function Navigation({ view, onChange }) {
             }}
           >
             <Icon name={key} />
-            <span>{label}</span>
+            <span>{t(label)}</span>
           </button>
         ))}
       </div>

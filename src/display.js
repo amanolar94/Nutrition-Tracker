@@ -1,3 +1,4 @@
+import { t, getLanguage, getLocale } from "./i18n.js";
 export const metrics = [
   ["calories", "Θερμίδες", "kcal"],
   ["protein", "Πρωτεΐνη", "g"],
@@ -11,31 +12,45 @@ export const categories = [
   "Σνακ",
   "Τροφοδοσία προπόνησης",
 ];
-export const number = (value) =>
-  Number(value).toLocaleString("el-GR", { maximumFractionDigits: 1 });
+export const number = (value, language = getLanguage()) =>
+  Number(value).toLocaleString(getLocale(language), {
+    maximumFractionDigits: 1,
+  });
 export function shiftDate(value, days) {
   const date = new Date(value + "T12:00:00Z");
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
-export function dateLabel(value, options = { day: "numeric", month: "long" }) {
-  return new Intl.DateTimeFormat("el-GR", {
+export function dateLabel(
+  value,
+  options = { day: "numeric", month: "long" },
+  language = getLanguage(),
+) {
+  return new Intl.DateTimeFormat(getLocale(language), {
     timeZone: "Europe/Athens",
     ...options,
   }).format(new Date(value + "T12:00:00Z"));
 }
-export function budgetLabel(value, target, unit) {
+export function budgetLabel(value, target, unit, language = getLanguage()) {
   const gap = target - value;
   return gap > 0
-    ? `${number(gap)} ${unit} έως τον στόχο`
+    ? t(
+        "{v0} {v1} έως τον στόχο",
+        { v0: number(gap, language), v1: unit },
+        language,
+      )
     : gap < 0
-      ? `${number(-gap)} ${unit} πάνω από τον στόχο`
-      : "Ακριβώς στον στόχο";
+      ? t(
+          "{v0} {v1} πάνω από τον στόχο",
+          { v0: number(-gap, language), v1: unit },
+          language,
+        )
+      : t("Ακριβώς στον στόχο", {}, language);
 }
-export function relativeDay(value, today) {
+export function relativeDay(value, today, language = getLanguage()) {
   return value === today
-    ? "Σήμερα"
+    ? t("Σήμερα", {}, language)
     : value === shiftDate(today, -1)
-      ? "Χθες"
-      : dateLabel(value, { weekday: "long" });
+      ? t("Χθες", {}, language)
+      : dateLabel(value, { weekday: "long" }, language);
 }

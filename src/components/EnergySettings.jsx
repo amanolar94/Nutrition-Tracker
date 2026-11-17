@@ -1,6 +1,8 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React, { useRef, useState } from "react";
-
 export default function EnergySettings({ settings, pending, busy, onSave }) {
+  useLanguage();
   const [edit, setEdit] = useState(undefined),
     [feedback, setFeedback] = useState("");
   const request = useRef(null);
@@ -8,15 +10,15 @@ export default function EnergySettings({ settings, pending, busy, onSave }) {
   const value = edit ?? settings.maintenance_calories ?? 2000;
   return (
     <section className="panel energy-settings" id="energy-settings">
-      <h2>Συντήρηση και ισοζύγιο</h2>
+      <h2>{t("Συντήρηση και ισοζύγιο")}</h2>
       <p className="muted">
-        Θερμίδες που εκτιμάς ότι καις σε μία ημέρα με τις συνηθισμένες
-        δραστηριότητες, χωρίς προπόνηση. Διαφέρει από τον βασικό μεταβολισμό και
-        από τον στόχο φαγητού.
+        {t(
+          "Θερμίδες που εκτιμάς ότι καις σε μία ημέρα με τις συνηθισμένες δραστηριότητες, χωρίς προπόνηση. Διαφέρει από τον βασικό μεταβολισμό και από τον στόχο φαγητού.",
+        )}
       </p>
       {pending ? (
         <p className="data-note">
-          Η ρύθμιση θα ενεργοποιηθεί μετά την ενημέρωση της βάσης.
+          {t("Η ρύθμιση θα ενεργοποιηθεί μετά την ενημέρωση της βάσης.")}
         </p>
       ) : (
         <form
@@ -57,7 +59,7 @@ export default function EnergySettings({ settings, pending, busy, onSave }) {
         >
           <fieldset disabled={busy}>
             <label>
-              Συντήρηση χωρίς προπόνηση (kcal/ημέρα)
+              {t("Συντήρηση χωρίς προπόνηση (kcal/ημέρα)")}
               <input
                 name="maintenance_calories"
                 type="number"
@@ -74,8 +76,9 @@ export default function EnergySettings({ settings, pending, busy, onSave }) {
             </label>
             {settings.maintenance_calories === null && (
               <p className="data-note">
-                Δεν έχει αποθηκευτεί συντήρηση. Η προτεινόμενη αρχική τιμή είναι
-                2.000 kcal· αποθήκευσέ την για να ενεργοποιηθεί ο υπολογισμός.
+                {t(
+                  "Δεν έχει αποθηκευτεί συντήρηση. Η προτεινόμενη αρχική τιμή είναι 2.000 kcal· αποθήκευσέ την για να ενεργοποιηθεί ο υπολογισμός.",
+                )}
               </p>
             )}
             <button
@@ -84,20 +87,20 @@ export default function EnergySettings({ settings, pending, busy, onSave }) {
                 edit === undefined && settings.maintenance_calories !== null
               }
             >
-              {busy ? "Αποθήκευση…" : "Αποθήκευση συντήρησης"}
+              {busy ? t("Αποθήκευση…") : t("Αποθήκευση συντήρησης")}
             </button>
           </fieldset>
         </form>
       )}
       {feedback && (
         <p className="form-feedback" role="status">
-          {feedback}
+          {t(feedback)}
         </p>
       )}
       <p className="data-note">
-        Οι ενεργές θερμίδες προπόνησης προστίθενται ξεχωριστά. Αλλαγή συντήρησης
-        επανυπολογίζει και τις προηγούμενες ημέρες. Κενή τιμή απενεργοποιεί την
-        εκτίμηση.
+        {t(
+          "Οι ενεργές θερμίδες προπόνησης προστίθενται ξεχωριστά. Αλλαγή συντήρησης επανυπολογίζει και τις προηγούμενες ημέρες. Κενή τιμή απενεργοποιεί την εκτίμηση.",
+        )}
       </p>
     </section>
   );

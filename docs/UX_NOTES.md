@@ -53,3 +53,9 @@ for whole-field clicks and Enter/Space, retaining normal behavior on browsers
 without that API. The browser smoke test exercises actual native picker invocation
 from the desktop date caption, keyboard and workout date field, plus the existing
 mobile/zoom coverage. No migration or MCP connection refresh is required.
+
+Greek/English localization adds an EN/EL control before sign-in, in the app header
+and in dialogs so a draft can be translated without closing it. Locale-aware
+labels, errors, dates and numbers update in place. Device preference persists and
+syncs across tabs; stored category values and user-entered names are preserved.
+See [LANGUAGES.md](LANGUAGES.md).

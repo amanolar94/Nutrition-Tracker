@@ -68,6 +68,7 @@ const vite = spawn(
 );
 let browser;
 let legacyMode = false;
+let failNextLogin = false;
 let energyLegacyMode = false;
 let diaryLegacyMode = false;
 let loseNextMealResponse = false;
@@ -95,7 +96,8 @@ try {
     executablePath: executable,
     args: ["--no-sandbox"],
   });
-  const page = await browser.newPage();
+  const primaryContext = await browser.newContext();
+  const page = await primaryContext.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const supabaseBridge = async (route) => {
@@ -104,7 +106,11 @@ try {
     let body = {},
       status = 200;
     try {
-      if (url.pathname.includes("/auth/v1/token"))
+      if (url.pathname.includes("/auth/v1/token") && failNextLogin) {
+        failNextLogin = false;
+        status = 400;
+        body = { code: "invalid_credentials", message: "private test error" };
+      } else if (url.pathname.includes("/auth/v1/token"))
         body = {
           access_token: "browser-test-token",
           token_type: "bearer",
@@ -281,6 +287,10 @@ try {
     }
     await route.fulfill({
       status,
+      headers: {
+        "X-Supabase-Api-Version": "2024-01-01",
+        "Access-Control-Expose-Headers": "X-Supabase-Api-Version",
+      },
       contentType: "application/json",
       body: JSON.stringify(body),
     });
@@ -294,6 +304,29 @@ try {
     ),
     true,
   );
+  await page
+    .getByRole("button", { name: "Αλλαγή γλώσσας σε Αγγλικά", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Welcome back", exact: true })
+    .waitFor();
+  assert.equal(await page.locator("html").getAttribute("lang"), "en");
+  await page.getByLabel("Email", { exact: true }).fill("test@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("test-password");
+  failNextLogin = true;
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByRole("status").waitFor();
+  assert.match(
+    await page.getByRole("status").innerText(),
+    /The email or password is incorrect/,
+  );
+  await page
+    .getByRole("button", { name: "Switch to Greek", exact: true })
+    .click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Το email ή ο κωδικός δεν είναι σωστός" })
+    .waitFor();
   await page.locator("[name=email]").fill("test@example.com");
   await page.locator("[name=password]").fill("test-password");
   await page.getByRole("button", { name: "Σύνδεση", exact: true }).click();
@@ -847,6 +880,222 @@ try {
   );
   await page.getByRole("button", { name: "Όλα", exact: true }).click();
 
+  // English is a presentation preference: database categories and drafts stay intact.
+  await page
+    .getByRole("button", { name: "Αλλαγή γλώσσας σε Αγγλικά", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Daily overview", exact: true })
+    .waitFor();
+  assert.match(await page.locator(".energy-card").innerText(), /2,700/);
+  await page
+    .getByRole("button", { name: "Add meal manually", exact: true })
+    .click();
+  let dialog = page.getByRole("dialog");
+  await dialog
+    .getByLabel("Meal name", { exact: true })
+    .fill("English round-trip");
+  await dialog
+    .getByLabel("Category", { exact: true })
+    .selectOption({ label: "Workout fueling" });
+  assert.equal(
+    await dialog.locator('[name="category"]').inputValue(),
+    "Τροφοδοσία προπόνησης",
+  );
+  for (const [key, value] of [
+    ["calories", "123.4"],
+    ["protein", "7"],
+    ["carbs", "18"],
+    ["fat", "3"],
+  ])
+    await dialog.locator(`[name="${key}"]`).fill(value);
+  await dialog
+    .getByRole("button", { name: "Switch to Greek", exact: true })
+    .click();
+  assert.equal(
+    await dialog.getByLabel("Όνομα γεύματος", { exact: true }).inputValue(),
+    "English round-trip",
+  );
+  assert.equal(await dialog.locator('[name="calories"]').inputValue(), "123.4");
+  assert.equal(
+    await dialog.locator('[name="category"]').inputValue(),
+    "Τροφοδοσία προπόνησης",
+  );
+  await dialog
+    .getByRole("button", { name: "Αλλαγή γλώσσας σε Αγγλικά", exact: true })
+    .click();
+  await dialog.getByRole("button", { name: "Save meal", exact: true }).click();
+  await dialog.waitFor({ state: "detached" });
+  await page.getByText("Meal saved.", { exact: true }).waitFor();
+  await db.exec("reset role");
+  const englishRecord = (
+    await db.query(
+      "select name,category,calories from public.meals where name='English round-trip'",
+    )
+  ).rows[0];
+  assert.deepEqual(englishRecord, {
+    name: "English round-trip",
+    category: "Τροφοδοσία προπόνησης",
+    calories: 123.4,
+  });
+  await page
+    .getByRole("button", { name: "Switch to Greek", exact: true })
+    .click();
+  await page.getByText("Το γεύμα αποθηκεύτηκε.", { exact: true }).waitFor();
+  await page
+    .getByRole("button", { name: "Αλλαγή γλώσσας σε Αγγλικά", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Delete English round-trip", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Delete meal?", exact: true })
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  assert.equal((await db.query("select id from public.meals")).rows.length, 2);
+  await page
+    .getByRole("button", { name: "Delete English round-trip", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Delete meal", exact: true })
+    .click();
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+  assert.equal((await db.query("select id from public.meals")).rows.length, 1);
+  await page
+    .getByRole("button", { name: "Favorite meals", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Your favorite meals", exact: true })
+    .waitFor();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Close", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "Settings", exact: true }).click();
+  const unchangedGoal = await page
+    .locator('[name="rest_calories"]')
+    .inputValue();
+  await page
+    .locator('[name="rest_calories"]')
+    .fill(String(Number(unchangedGoal) + 100));
+  await page
+    .getByRole("button", { name: "Switch to Greek", exact: true })
+    .click();
+  assert.equal(
+    await page.locator('[name="rest_calories"]').inputValue(),
+    String(Number(unchangedGoal) + 100),
+  );
+  await page
+    .getByRole("button", { name: "Αλλαγή γλώσσας σε Αγγλικά", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Your nutrition targets", exact: true })
+    .waitFor();
+  await page.locator('[name="rest_calories"]').fill(unchangedGoal);
+  for (const view of ["Day", "Week", "Progress", "Settings"]) {
+    await page.getByRole("tab", { name: view, exact: true }).click();
+    const text = (await page.locator("body").innerText()).replaceAll(
+      "Τρέξιμο από MCP",
+      "",
+    );
+    assert.doesNotMatch(
+      text,
+      /[\u0370-\u03ff\u1f00-\u1fff]/,
+      `Untranslated text in ${view}: ${text}`,
+    );
+    for (const width of [320, 375, 390, 768, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      assert.ok(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        `English ${view} overflow at ${width}`,
+      );
+    }
+    if (process.env.NUTRITION_SCREENSHOT_DIR) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.evaluate(() => scrollTo(0, 0));
+      await page.screenshot({
+        path:
+          process.env.NUTRITION_SCREENSHOT_DIR +
+          `/english-${view.toLowerCase()}.png`,
+        fullPage: true,
+      });
+    }
+  }
+  await page
+    .getByRole("link", { name: "Privacy information", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Privacy — Nutrition Tracker", exact: true })
+    .waitFor();
+  assert.equal(await page.locator("html").getAttribute("lang"), "en");
+  await page.getByRole("link", { name: "Back to diary", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Daily overview", exact: true })
+    .waitFor();
+  await page.reload();
+  await page
+    .getByRole("heading", { name: "Daily overview", exact: true })
+    .waitFor();
+  assert.equal(await page.locator("html").getAttribute("lang"), "en");
+  const otherPage = await page.context().newPage();
+  await otherPage.route(
+    "https://nutrition-test.supabase.co/**",
+    supabaseBridge,
+  );
+  await otherPage.goto(origin);
+  await otherPage
+    .getByRole("heading", { name: "Daily overview", exact: true })
+    .waitFor();
+  await otherPage
+    .getByRole("button", { name: "Switch to Greek", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Ημερήσια εικόνα", exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Αλλαγή γλώσσας σε Αγγλικά", exact: true })
+    .click();
+  await otherPage
+    .getByRole("heading", { name: "Daily overview", exact: true })
+    .waitFor();
+  await otherPage.close();
+  await page
+    .getByRole("button", { name: "Switch to Greek", exact: true })
+    .click();
+  await page.getByLabel("Ημερομηνία καταγραφής").fill("2026-10-14");
+
+  const blockedContext = await browser.newContext();
+  await blockedContext.route(
+    "https://nutrition-test.supabase.co/**",
+    supabaseBridge,
+  );
+  await blockedContext.addInitScript(() => {
+    for (const name of ["getItem", "setItem"]) {
+      const original = Storage.prototype[name];
+      Storage.prototype[name] = function (key, ...args) {
+        if (key === "nutrition-tracker-language")
+          throw new DOMException("Blocked", "SecurityError");
+        return original.call(this, key, ...args);
+      };
+    }
+  });
+  const blockedPage = await blockedContext.newPage();
+  blockedPage.on("pageerror", (error) => errors.push(error.message));
+  await blockedPage.goto(origin);
+  await blockedPage
+    .getByRole("heading", { name: "Καλώς ήρθες", exact: true })
+    .waitFor();
+  await blockedPage
+    .getByRole("button", { name: "Αλλαγή γλώσσας σε Αγγλικά", exact: true })
+    .click();
+  await blockedPage
+    .getByRole("heading", { name: "Welcome back", exact: true })
+    .waitFor();
+  await blockedContext.close();
+
   // Touch devices keep the mobile navigation even when zoom-out increases layout width.
   const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -937,6 +1186,21 @@ try {
     .waitFor();
   await page.goto(origin + "/oauth/consent?authorization_id=test");
   await page.getByRole("heading", { name: "Nutrition Tracker test" }).waitFor();
+  await page
+    .getByRole("button", { name: "Αλλαγή γλώσσας σε Αγγλικά", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Connect Nutrition Tracker", exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Allow access", exact: true })
+      .count(),
+    1,
+  );
+  await page
+    .getByRole("button", { name: "Switch to Greek", exact: true })
+    .click();
   assert.equal(
     await page.getByRole("button", { name: "Έγκριση πρόσβασης" }).count(),
     1,
@@ -1000,7 +1264,7 @@ try {
   assert.equal(await page.locator("input[name=carbs]").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: desktop calendar opens from whole date field and keyboard (including workout form), saved per-date day types, editable favorites without intake writes, draft repeats/cancel, meal-time editing and lost-response idempotency, diary filters, zoom 50–200%, new migration fallback, simplified account connections, grant revocation failure/retry, no legacy key controls/requests, MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
+    "PASS: Greek/English sign-in, errors, all views, dates/numbers, category round-trip, draft preservation, preference persistence, cross-tab sync, blocked-storage fallback, privacy/OAuth localization, English mobile layout, desktop calendar opens from whole date field and keyboard (including workout form), saved per-date day types, editable favorites without intake writes, draft repeats/cancel, meal-time editing and lost-response idempotency, diary filters, zoom 50–200%, new migration fallback, simplified account connections, grant revocation failure/retry, no legacy key controls/requests, MCP retained, paginated history beyond 1000 records, workout RPC add/edit/delete, saved 2000 maintenance, daily/weekly balance, lost-response retry without duplicates, energy migration fallback, direct PostgreSQL writes without dashboard approval, macro/fueling totals, updates/deletion, weights/targets, mobile 320–1280, OAuth consent rendering, legacy-schema fallback, tab/keyboard navigation, week drilldown, date controls, modal cancellation and unsaved goal preservation. HTTP auth/REST bridge is simulated; live Supabase OAuth is not verified.",
   );
 } finally {
   await browser?.close();

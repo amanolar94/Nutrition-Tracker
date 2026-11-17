@@ -1,3 +1,5 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React, { useState } from "react";
 import { metrics, number, budgetLabel, categories } from "../display.js";
 import { totals } from "../nutrition.js";
@@ -6,6 +8,7 @@ import EnergyBalance from "./EnergyBalance.jsx";
 import WorkoutLog from "./WorkoutLog.jsx";
 import { matchingTemplate } from "./MealLibrary.jsx";
 function Meter({ value, target, label }) {
+  useLanguage();
   return (
     <progress
       aria-label={label}
@@ -38,6 +41,7 @@ export default function DailyView({
   onSettings,
   energyMigrationPending,
 }) {
+  useLanguage();
   const [filter, setFilter] = useState("all");
   const target = (key) => goals[mode === "rest" ? key : `training_${key}`];
   const incomplete = daily.some((m) => m.carbs == null || m.fat == null);
@@ -50,61 +54,67 @@ export default function DailyView({
     <div className="day-content">
       <div className="day-context">
         <label className="day-type">
-          <span>Τύπος ημέρας</span>
+          <span>{t("Τύπος ημέρας")}</span>
           <select
-            aria-label="Στόχοι ημέρας"
+            aria-label={t("Στόχοι ημέρας")}
             value={mode}
             disabled={disabled || migrationPending || diaryMigrationPending}
             onChange={(e) => onMode(e.target.value)}
           >
-            <option value="rest">Ανάπαυση</option>
-            <option value="training">Προπόνηση</option>
+            <option value="rest">{t("Ανάπαυση")}</option>
+            <option value="training">{t("Προπόνηση")}</option>
           </select>
         </label>
         <span className="data-note">
           {diaryMigrationPending
-            ? "Η αποθήκευση τύπου ημέρας και τα αγαπημένα θα ενεργοποιηθούν μετά την ενημέρωση της βάσης."
-            : "Αποθηκεύεται για αυτή την ημερομηνία"}
+            ? t(
+                "Η αποθήκευση τύπου ημέρας και τα αγαπημένα θα ενεργοποιηθούν μετά την ενημέρωση της βάσης.",
+              )
+            : t("Αποθηκεύεται για αυτή την ημερομηνία")}
         </span>
       </div>
       <div className="daily-summary">
         <section className="energy-card stat" data-metric="calories">
-          <h2>Πρόσληψη ημέρας</h2>
+          <h2>{t("Πρόσληψη ημέρας")}</h2>
           <div className="energy-value">
             <strong>{number(sum.calories)}</strong>
             <span>
               kcal{" "}
               <span className="energy-goal">
-                / {number(target("calories"))} στόχος
+                / {number(target("calories"))}
+                {t(" στόχος")}
               </span>
             </span>
           </div>
           <Meter
             value={sum.calories}
             target={target("calories")}
-            label="Πρόοδος θερμίδων"
+            label={t("Πρόοδος θερμίδων")}
           />
           <p>{budgetLabel(sum.calories, target("calories"), "kcal")}</p>
         </section>
-        <section className="macro-stats" aria-label="Μακροθρεπτικά ημέρας">
+        <section className="macro-stats" aria-label={t("Μακροθρεπτικά ημέρας")}>
           {metrics.slice(1).map(([key, label]) => (
             <article
               className={`macro-card stat ${key}`}
               data-metric={key}
               key={key}
             >
-              <h3>{label}</h3>
+              <h3>{t(label)}</h3>
               <div>
                 <strong>{number(sum[key])}</strong>
                 <span> g</span>
               </div>
               <span className="macro-target">
-                / {number(target(key))} g στόχος
+                / {number(target(key))}
+                {t(" g στόχος")}
               </span>
               <Meter
                 value={sum[key]}
                 target={target(key)}
-                label={`Πρόοδος ${label.toLowerCase()}`}
+                label={t("Πρόοδος {v0}", {
+                  v0: t(label).toLowerCase(),
+                })}
               />
             </article>
           ))}
@@ -112,8 +122,9 @@ export default function DailyView({
       </div>
       {incomplete && (
         <p className="data-note" role="status">
-          Κάποια γεύματα έχουν άγνωστους υδατάνθρακες ή λιπαρά. Τα σύνολα είναι
-          ελλιπή.
+          {t(
+            "Κάποια γεύματα έχουν άγνωστους υδατάνθρακες ή λιπαρά. Τα σύνολα είναι ελλιπή.",
+          )}
         </p>
       )}
       <EnergyBalance energy={energy} onSettings={onSettings} compact />
@@ -122,24 +133,24 @@ export default function DailyView({
           <div className="section-title">
             <div>
               <p className="eyebrow">
-                ΗΜΕΡΟΛΟΓΙΟ · {daily.length}{" "}
-                {daily.length === 1 ? "ΓΕΥΜΑ" : "ΓΕΥΜΑΤΑ"}
+                {t("ΗΜΕΡΟΛΟΓΙΟ · ")}
+                {daily.length} {daily.length === 1 ? t("ΓΕΥΜΑ") : t("ΓΕΥΜΑΤΑ")}
               </p>
-              <h2>Τα γεύματά σου</h2>
+              <h2>{t("Τα γεύματά σου")}</h2>
             </div>
             <div className="diary-actions">
               <button
                 className="secondary compact"
-                aria-label="Αγαπημένα γεύματα"
+                aria-label={t("Αγαπημένα γεύματα")}
                 onClick={onLibrary}
                 disabled={disabled || diaryMigrationPending}
               >
                 <Icon name="star" />
-                <span>Αγαπημένα</span>
+                <span>{t("Αγαπημένα")}</span>
               </button>
               <button
                 className="icon-button"
-                aria-label="Χειροκίνητη προσθήκη"
+                aria-label={t("Χειροκίνητη προσθήκη")}
                 onClick={onAdd}
                 disabled={disabled}
               >
@@ -150,11 +161,11 @@ export default function DailyView({
           <div
             className="diary-filters"
             role="group"
-            aria-label="Φίλτρο γευμάτων"
+            aria-label={t("Φίλτρο γευμάτων")}
           >
             {[
-              ["all", "Όλα"],
-              ["meals", "Γεύματα"],
+              ["all", t("Όλα")],
+              ["meals", t("Γεύματα")],
               ["fuel", "Workout fueling"],
             ].map(([value, label]) => (
               <button
@@ -162,7 +173,7 @@ export default function DailyView({
                 aria-pressed={filter === value}
                 onClick={() => setFilter(value)}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -177,19 +188,20 @@ export default function DailyView({
               </div>
               <h3>
                 {daily.length
-                  ? "Δεν υπάρχουν γεύματα σε αυτό το φίλτρο"
-                  : "Δεν υπάρχουν γεύματα ακόμη"}
+                  ? t("Δεν υπάρχουν γεύματα σε αυτό το φίλτρο")
+                  : t("Δεν υπάρχουν γεύματα ακόμη")}
               </h3>
               <p>
-                Κατάγραψε το γεύμα σου στο ChatGPT και επιβεβαίωσε την
-                αποθήκευση. Θα εμφανιστεί εδώ.
+                {t(
+                  "Κατάγραψε το γεύμα σου στο ChatGPT και επιβεβαίωσε την αποθήκευση. Θα εμφανιστεί εδώ.",
+                )}
               </p>
               <button
                 className="text-button"
                 disabled={disabled}
                 onClick={onAdd}
               >
-                Ή πρόσθεσέ το χειροκίνητα
+                {t("Ή πρόσθεσέ το χειροκίνητα")}
               </button>
             </div>
           ) : (
@@ -205,7 +217,7 @@ export default function DailyView({
                   key={category}
                 >
                   <div className="group-title">
-                    <h3>{category}</h3>
+                    <h3>{t(category)}</h3>
                     <span>{number(totals(records, date).calories)} kcal</span>
                   </div>
                   <ul>
@@ -231,10 +243,10 @@ export default function DailyView({
                         <dl className="meal-macros">
                           {metrics.slice(1).map(([key, label]) => (
                             <div key={key}>
-                              <dt>{label}</dt>
+                              <dt>{t(label)}</dt>
                               <dd>
                                 {m[key] == null
-                                  ? "Άγνωστο"
+                                  ? t("Άγνωστο")
                                   : `${number(m[key])} g`}
                               </dd>
                             </div>
@@ -243,7 +255,7 @@ export default function DailyView({
                         <div className="meal-actions">
                           <button
                             className="icon-button favorite"
-                            aria-label={`${matchingTemplate(m, templates) ? "Στα αγαπημένα" : "Αγαπημένο"} ${m.name}`}
+                            aria-label={`${matchingTemplate(m, templates) ? t("Στα αγαπημένα") : t("Αγαπημένο")} ${m.name}`}
                             disabled={
                               disabled ||
                               diaryMigrationPending ||
@@ -261,11 +273,13 @@ export default function DailyView({
                             onClick={() => onRepeat(m)}
                           >
                             <Icon name="plus" />
-                            Επανάληψη
+                            {t("Επανάληψη")}
                           </button>
                           <button
                             className="icon-button"
-                            aria-label={`Επεξεργασία ${m.name}`}
+                            aria-label={t("Επεξεργασία {v0}", {
+                              v0: m.name,
+                            })}
                             disabled={disabled || migrationPending}
                             onClick={() => onEdit(m)}
                           >
@@ -273,7 +287,9 @@ export default function DailyView({
                           </button>
                           <button
                             className="icon-button delete"
-                            aria-label={`Διαγραφή ${m.name}`}
+                            aria-label={t("Διαγραφή {v0}", {
+                              v0: m.name,
+                            })}
                             disabled={disabled}
                             onClick={() => onDelete(m)}
                           >
@@ -295,21 +311,30 @@ export default function DailyView({
                 <Icon name="fuel" />
                 Workout fueling
               </h2>
-              <span className="badge">Τροφοδοσία</span>
+              <span className="badge">{t("Τροφοδοσία")}</span>
             </div>
             <p className="fuel-total">
-              <b>{number(fuel.carbs)} g</b> υδατάνθρακες{" "}
-              <span>· {number(fuel.calories)} kcal</span>
+              <b>{number(fuel.carbs)} g</b>
+              {t(" υδατάνθρακες")} <span>· {number(fuel.calories)} kcal</span>
             </p>
             <p className="data-note">
-              Περιλαμβάνεται ήδη στην πρόσληψη και στα macros της ημέρας.
+              {t("Περιλαμβάνεται ήδη στην πρόσληψη και στα macros της ημέρας.")}
             </p>
           </section>
           <WorkoutLog
             workouts={workouts}
             onAdd={() => onWorkout({})}
-            onEdit={(w) => onWorkout({ workout: w })}
-            onDelete={(w) => onWorkout({ workout: w, remove: true })}
+            onEdit={(w) =>
+              onWorkout({
+                workout: w,
+              })
+            }
+            onDelete={(w) =>
+              onWorkout({
+                workout: w,
+                remove: true,
+              })
+            }
             disabled={disabled}
             pending={energyMigrationPending}
           />

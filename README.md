@@ -84,3 +84,11 @@ npm run build
 τις τρέχουσες λειτουργίες χωρίς αλλαγή αποθηκευμένων δεδομένων. Τα MCP errors πλέον
 επιστρέφουν πεδία επικύρωσης και correlation ID σε JSON.
 [Αιτία, εφαρμογή και δοκιμές](docs/WORKOUT_VALIDATION_FIX.md).
+
+## Greek / English
+
+Switch with **EN / EL** in the header, sign-in screens or forms. The language is
+remembered on each device. All dashboard views, forms, errors, OAuth consent and
+privacy information are available in English. Dates and numbers follow the
+selected locale; saved data and the Europe/Athens tracking calendar stay the same.
+No database migration is needed. [Translation guide and tests](docs/LANGUAGES.md).

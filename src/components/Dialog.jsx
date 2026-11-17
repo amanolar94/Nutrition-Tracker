@@ -1,3 +1,6 @@
+import LanguageSwitcher from "./LanguageSwitcher.jsx";
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React, { useEffect, useId, useRef } from "react";
 import Icon from "./Icons.jsx";
 export default function Dialog({
@@ -7,6 +10,7 @@ export default function Dialog({
   children,
   wide = false,
 }) {
+  useLanguage();
   const ref = useRef(null),
     id = useId();
   useEffect(() => {
@@ -28,9 +32,10 @@ export default function Dialog({
     >
       <div className="dialog-header">
         <h2 id={id}>{title}</h2>
+        <LanguageSwitcher />
         <button
           className="icon-button"
-          aria-label="Κλείσιμο"
+          aria-label={t("Κλείσιμο")}
           disabled={busy}
           onClick={onClose}
         >

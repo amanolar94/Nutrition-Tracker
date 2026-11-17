@@ -1,3 +1,6 @@
+import { t, getLocale, getLanguage } from "./i18n.js";
+import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
+import { useLanguage } from "./i18n-react.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { localDate, totals } from "./nutrition.js";
@@ -35,12 +38,15 @@ const titles = {
   settings: "Οι ρυθμίσεις σου",
 };
 function App({ user, initial }) {
+  useLanguage();
   const [meals, setMeals] = useState(initial.meals),
     [goals, setGoals] = useState(initial.goals),
     [weights, setWeights] = useState(initial.weights || []),
     [workouts, setWorkouts] = useState(initial.workouts || []),
     [energySettings, setEnergySettings] = useState(
-      initial.energySettings || { maintenance_calories: null },
+      initial.energySettings || {
+        maintenance_calories: null,
+      },
     ),
     [energyMigrationPending, setEnergyMigrationPending] = useState(
       initial.energyMigrationPending || false,
@@ -69,7 +75,10 @@ function App({ user, initial }) {
     [formError, setFormError] = useState("");
   const readVersion = useRef(0);
   function tell(text, tone = "info") {
-    setNotice({ text, tone });
+    setNotice({
+      text,
+      tone,
+    });
   }
   function apply(next) {
     setMigrationPending(next.migrationPending || false);
@@ -77,7 +86,11 @@ function App({ user, initial }) {
     setGoals(next.goals);
     setWeights(next.weights || []);
     setWorkouts(next.workouts || []);
-    setEnergySettings(next.energySettings || { maintenance_calories: null });
+    setEnergySettings(
+      next.energySettings || {
+        maintenance_calories: null,
+      },
+    );
     setEnergyMigrationPending(next.energyMigrationPending || false);
     setDayTypes(next.dayTypes || []);
     setTemplates(next.templates || []);
@@ -87,7 +100,10 @@ function App({ user, initial }) {
   function navigate(next) {
     setView(next);
     window.location.hash = next;
-    window.scrollTo({ top: 0, behavior: "auto" });
+    window.scrollTo({
+      top: 0,
+      behavior: "auto",
+    });
   }
   useEffect(() => {
     const onHash = () => {
@@ -160,9 +176,16 @@ function App({ user, initial }) {
           meal_time: ignoredTime,
           ...fields
         } = payload;
-        result = { ...fields, id: request_id };
+        result = {
+          ...fields,
+          id: request_id,
+        };
         await insertMeal(user.id, result);
-      } else result = await writeEnergy(operation, { ...payload, request_id });
+      } else
+        result = await writeEnergy(operation, {
+          ...payload,
+          request_id,
+        });
       if (operation === "setDayType")
         setDayTypes((previous) => [
           ...previous.filter((d) => d.date !== result.date),
@@ -170,11 +193,11 @@ function App({ user, initial }) {
         ]);
       else if (operation === "deleteMealTemplate")
         setTemplates((previous) =>
-          previous.filter((t) => t.id !== payload.template_id),
+          previous.filter((template) => template.id !== payload.template_id),
         );
       else if (operation === "saveMealTemplate") {
         setTemplates((previous) => [
-          ...previous.filter((t) => t.id !== result.id),
+          ...previous.filter((template) => template.id !== result.id),
           result,
         ]);
         tell("Το αγαπημένο αποθηκεύτηκε.");
@@ -214,7 +237,10 @@ function App({ user, initial }) {
         const request_id =
           actionReceipts.current.get(key) || crypto.randomUUID();
         actionReceipts.current.set(key, request_id);
-        await writeEnergy("deleteMeal", { request_id, meal_id: deleting.id });
+        await writeEnergy("deleteMeal", {
+          request_id,
+          meal_id: deleting.id,
+        });
         actionReceipts.current.delete(key);
       }
       setMeals((previous) => previous.filter((m) => m.id !== deleting.id));
@@ -232,7 +258,10 @@ function App({ user, initial }) {
     setBusy(true);
     try {
       await updateGoals(user.id, next);
-      setGoals((previous) => ({ ...previous, ...next }));
+      setGoals((previous) => ({
+        ...previous,
+        ...next,
+      }));
       return true;
     } catch {
       return false;
@@ -283,9 +312,9 @@ function App({ user, initial }) {
   function energySettingsView() {
     navigate("settings");
     requestAnimationFrame(() =>
-      document
-        .getElementById("energy-settings")
-        ?.scrollIntoView({ block: "start" }),
+      document.getElementById("energy-settings")?.scrollIntoView({
+        block: "start",
+      }),
     );
   }
   const daily = meals.filter((m) => m.date === date),
@@ -306,13 +335,13 @@ function App({ user, initial }) {
   return (
     <>
       <a className="skip-link" href="#main-content">
-        Μετάβαση στο περιεχόμενο
+        {t("Μετάβαση στο περιεχόμενο")}
       </a>
       <header className="app-header">
         <a
           className="brand"
           href="#day"
-          aria-label="Nutrition Tracker · Ημέρα"
+          aria-label={t("Nutrition Tracker · Ημέρα")}
           onClick={(e) => {
             e.preventDefault();
             navigate("day");
@@ -324,10 +353,11 @@ function App({ user, initial }) {
           </span>
         </a>
         <div className="header-actions">
+          <LanguageSwitcher />
           <button
             className={`icon-button ${refreshing ? "is-refreshing" : ""}`}
-            aria-label="Ανανέωση"
-            title="Ανανέωση δεδομένων"
+            aria-label={t("Ανανέωση")}
+            title={t("Ανανέωση δεδομένων")}
             disabled={disabled}
             onClick={refresh}
           >
@@ -335,13 +365,13 @@ function App({ user, initial }) {
           </button>
           <button
             className="account-button"
-            aria-label="Λογαριασμός και ρυθμίσεις"
+            aria-label={t("Λογαριασμός και ρυθμίσεις")}
             onClick={() => {
               navigate("settings");
               requestAnimationFrame(() =>
-                document
-                  .getElementById("account-settings")
-                  ?.scrollIntoView({ block: "start" }),
+                document.getElementById("account-settings")?.scrollIntoView({
+                  block: "start",
+                }),
               );
             }}
           >
@@ -356,10 +386,10 @@ function App({ user, initial }) {
             className={`notice ${notice.tone}`}
             role={notice.tone === "error" ? "alert" : "status"}
           >
-            <span>{notice.text}</span>
+            <span>{t(notice.text)}</span>
             <button
               className="icon-button"
-              aria-label="Κλείσιμο μηνύματος"
+              aria-label={t("Κλείσιμο μηνύματος")}
               onClick={() => setNotice(null)}
             >
               <Icon name="close" />
@@ -368,9 +398,9 @@ function App({ user, initial }) {
         )}
         {migrationPending && (
           <p role="status" className="notice">
-            Κάποιες λειτουργίες δεν είναι διαθέσιμες ακόμη. Οι υπάρχουσες
-            καταγραφές και οι στόχοι θερμίδων/πρωτεΐνης συνεχίζουν να
-            λειτουργούν.
+            {t(
+              "Κάποιες λειτουργίες δεν είναι διαθέσιμες ακόμη. Οι υπάρχουσες καταγραφές και οι στόχοι θερμίδων/πρωτεΐνης συνεχίζουν να λειτουργούν.",
+            )}
           </p>
         )}
         <section
@@ -382,12 +412,18 @@ function App({ user, initial }) {
           <div className="page-heading">
             <div>
               <p className="eyebrow">NUTRITION TRACKER</p>
-              <h1>{titles[view]}</h1>
+              <h1>{t(titles[view])}</h1>
             </div>
             <p className="sync-status" role="status">
               {refreshing
-                ? "Ενημέρωση…"
-                : `Ενημέρωση ${lastSync.toLocaleTimeString("el-GR", { timeZone: "Europe/Athens", hour: "2-digit", minute: "2-digit" })}`}
+                ? t("Ενημέρωση…")
+                : t("Ενημέρωση {v0}", {
+                    v0: lastSync.toLocaleTimeString(getLocale(), {
+                      timeZone: "Europe/Athens",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                  })}
             </p>
           </div>
           {(view === "day" || view === "week") && (
@@ -403,14 +439,27 @@ function App({ user, initial }) {
                 saveDiary("saveMealTemplate", templateFields(m))
               }
               onLibrary={() => setLibrary(true)}
-              onEdit={(meal) => setMealEditor({ meal })}
-              onRepeat={(template) => setMealEditor({ template })}
+              onEdit={(meal) =>
+                setMealEditor({
+                  meal,
+                })
+              }
+              onRepeat={(template) =>
+                setMealEditor({
+                  template,
+                })
+              }
               sum={sum}
               fuel={fuel}
               date={date}
               goals={goals}
               mode={dayType}
-              onMode={(day_type) => saveDiary("setDayType", { date, day_type })}
+              onMode={(day_type) =>
+                saveDiary("setDayType", {
+                  date,
+                  day_type,
+                })
+              }
               onAdd={() => {
                 setFormError("");
                 setMealEditor({});
@@ -460,23 +509,26 @@ function App({ user, initial }) {
               />
             </div>
             <section id="account-settings" className="panel account-panel">
-              <p className="eyebrow">ΛΟΓΑΡΙΑΣΜΟΣ</p>
-              <h2>Τα στοιχεία σου</h2>
+              <p className="eyebrow">{t("ΛΟΓΑΡΙΑΣΜΟΣ")}</p>
+              <h2>{t("Τα στοιχεία σου")}</h2>
               <p className="account-email">{user.email}</p>
               <p className="muted">
-                Τα δεδομένα σου αποθηκεύονται στον λογαριασμό σου και είναι
-                διαθέσιμα από κάθε συσκευή.
+                {t(
+                  "Τα δεδομένα σου αποθηκεύονται στον λογαριασμό σου και είναι διαθέσιμα από κάθε συσκευή.",
+                )}
               </p>
-              <a href="/privacy.html">Πληροφορίες απορρήτου</a>
+              <a href={`/privacy.html?lang=${getLanguage()}`}>
+                {t("Πληροφορίες απορρήτου")}
+              </a>
               {view === "settings" && <OAuthConnections />}
               <button className="secondary" disabled={busy} onClick={logout}>
-                Αποσύνδεση
+                {t("Αποσύνδεση")}
               </button>
             </section>
           </div>
         </section>
         <footer>
-          Nutrition Tracker · Τα δεδομένα σου, στον λογαριασμό σου.
+          {t("Nutrition Tracker · Τα δεδομένα σου, στον λογαριασμό σου.")}
         </footer>
       </main>
       {workoutEditor && (
@@ -495,11 +547,16 @@ function App({ user, initial }) {
           onClose={() => setLibrary(false)}
           onRepeat={(template) => {
             setLibrary(false);
-            setMealEditor({ template });
+            setMealEditor({
+              template,
+            });
           }}
           onEdit={(template) => {
             setLibrary(false);
-            setMealEditor({ template, favorite: true });
+            setMealEditor({
+              template,
+              favorite: true,
+            });
           }}
           onDelete={(payload) => saveDiary("deleteMealTemplate", payload)}
         />
@@ -517,23 +574,24 @@ function App({ user, initial }) {
       )}
       {deleting && (
         <Dialog
-          title="Διαγραφή γεύματος;"
+          title={t("Διαγραφή γεύματος;")}
           busy={busy}
           onClose={() => setDeleting(null)}
         >
           <p>
-            Θα διαγραφεί το <b>{deleting.name}</b> ({number(deleting.calories)}{" "}
-            kcal) από τις{" "}
+            {t("Θα διαγραφεί το ")}
+            <b>{deleting.name}</b> ({number(deleting.calories)}{" "}
+            {t("kcal) από τις")}{" "}
             {dateLabel(deleting.date, {
               day: "numeric",
               month: "long",
               year: "numeric",
             })}
-            . Η αλλαγή δεν αναιρείται.
+            {t(". Η αλλαγή δεν αναιρείται.")}
           </p>
           {formError && (
             <p className="form-feedback error" role="alert">
-              {formError}
+              {t(formError)}
             </p>
           )}
           <div className="dialog-actions">
@@ -542,10 +600,10 @@ function App({ user, initial }) {
               disabled={busy}
               onClick={() => setDeleting(null)}
             >
-              Ακύρωση
+              {t("Ακύρωση")}
             </button>
             <button className="danger" disabled={disabled} onClick={remove}>
-              {busy ? "Διαγραφή…" : "Διαγραφή γεύματος"}
+              {busy ? t("Διαγραφή…") : t("Διαγραφή γεύματος")}
             </button>
           </div>
         </Dialog>
@@ -553,14 +611,21 @@ function App({ user, initial }) {
     </>
   );
 }
-createRoot(document.getElementById("root")).render(
-  <Auth>
-    {(user, initial) =>
-      window.location.pathname === "/oauth/consent" ? (
-        <OAuthConsent user={user} />
-      ) : (
-        <App key={user.id} user={user} initial={initial} />
-      )
-    }
-  </Auth>,
-);
+function Root() {
+  const language = useLanguage();
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+  return (
+    <Auth>
+      {(user, initial) =>
+        window.location.pathname === "/oauth/consent" ? (
+          <OAuthConsent user={user} />
+        ) : (
+          <App key={user.id} user={user} initial={initial} />
+        )
+      }
+    </Auth>
+  );
+}
+createRoot(document.getElementById("root")).render(<Root />);

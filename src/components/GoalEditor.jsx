@@ -1,16 +1,23 @@
+import { t } from "../i18n.js";
+import { useLanguage } from "../i18n-react.jsx";
 import React, { useState } from "react";
 import { metrics } from "../display.js";
 export default function GoalEditor({ goals, migrationPending, busy, onSave }) {
+  useLanguage();
   const [edits, setEdits] = useState({}),
     [feedback, setFeedback] = useState("");
-  const draft = { ...goals, ...edits },
+  const draft = {
+      ...goals,
+      ...edits,
+    },
     dirty = Object.keys(edits).length > 0;
   return (
     <section className="panel goals">
-      <h2>Οι διατροφικοί σου στόχοι</h2>
+      <h2>{t("Οι διατροφικοί σου στόχοι")}</h2>
       <p className="muted">
-        Σύγκρινε και άλλαξε τους δύο στόχους πρόσληψης. Η συντήρηση για το
-        ισοζύγιο ρυθμίζεται χωριστά.
+        {t(
+          "Σύγκρινε και άλλαξε τους δύο στόχους πρόσληψης. Η συντήρηση για το ισοζύγιο ρυθμίζεται χωριστά.",
+        )}
       </p>
       <form
         onSubmit={async (e) => {
@@ -49,20 +56,22 @@ export default function GoalEditor({ goals, migrationPending, busy, onSave }) {
             {(migrationPending ? ["rest"] : ["rest", "training"]).map(
               (mode) => (
                 <div className="goal-column" key={mode}>
-                  <h3>{mode === "rest" ? "Ανάπαυση" : "Προπόνηση"}</h3>
+                  <h3>{mode === "rest" ? t("Ανάπαυση") : t("Προπόνηση")}</h3>
                   {(migrationPending ? metrics.slice(0, 2) : metrics).map(
                     ([key, label, unit]) => {
                       const name = mode === "rest" ? key : `training_${key}`;
                       return (
                         <label key={name}>
-                          {label} ({unit})
+                          {t(label)} ({unit})
                           <input
                             name={`${mode}_${key}`}
                             value={draft[name] ?? ""}
                             onChange={(e) => {
                               const value = e.target.value;
                               setEdits((previous) => {
-                                const next = { ...previous };
+                                const next = {
+                                  ...previous,
+                                };
                                 if (value === String(goals[name]))
                                   delete next[name];
                                 else next[name] = value;
@@ -90,20 +99,24 @@ export default function GoalEditor({ goals, migrationPending, busy, onSave }) {
             )}
           </div>
           <button className="primary" disabled={!dirty}>
-            {busy ? "Αποθήκευση…" : "Αποθήκευση στόχων"}
+            {busy ? t("Αποθήκευση…") : t("Αποθήκευση στόχων")}
           </button>
         </fieldset>
       </form>
       {feedback && (
         <p role="status" className="form-feedback">
-          {feedback}
+          {t(feedback)}
         </p>
       )}
       {dirty && (
-        <p className="data-note">Υπάρχουν αλλαγές που δεν έχουν αποθηκευτεί.</p>
+        <p className="data-note">
+          {t("Υπάρχουν αλλαγές που δεν έχουν αποθηκευτεί.")}
+        </p>
       )}
       <p className="data-note">
-        Οι αρχικοί στόχοι είναι ενδεικτικοί. Προσάρμοσέ τους στις ανάγκες σου.
+        {t(
+          "Οι αρχικοί στόχοι είναι ενδεικτικοί. Προσάρμοσέ τους στις ανάγκες σου.",
+        )}
       </p>
     </section>
   );

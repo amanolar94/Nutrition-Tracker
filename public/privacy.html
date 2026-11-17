@@ -1,1 +1,166 @@
-<!doctype html><html lang="el"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Απόρρητο — Nutrition Tracker</title><style>body{font-family:system-ui;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.7;color:#213e34}a{color:#184d3d}</style></head><body><h1>Απόρρητο — Nutrition Tracker</h1><p>Η εφαρμογή αποθηκεύει γεύματα (όνομα, ημερομηνία, κατηγορία, θερμίδες, πρωτεΐνη, υδατάνθρακες, λίπος) μετρήσεις βάρους, προπονήσεις (όνομα, ημερομηνία, ενεργές θερμίδες), εκτίμηση συντήρησης και στόχους ανάπαυσης/προπόνησης στο Supabase, συνδεδεμένα με τον λογαριασμό σου. Η σύνδεση γίνεται μέσω Supabase Auth. Η συνεδρία σύνδεσης διατηρείται στον browser.</p><p>Αν συνδέσεις προσωπικό GPT, τα στοιχεία που επιβεβαιώνεις στη συνομιλία στέλνονται από το ChatGPT στο API της εφαρμογής στο Vercel και αποθηκεύονται στο Supabase. Η συνομιλία διέπεται επίσης από τις ρυθμίσεις και πολιτικές του ChatGPT. Η εφαρμογή δεν αποθηκεύει το πλήρες ιστορικό της συνομιλίας.</p><p>Η παλιά σύνδεση με προσωπικά κλειδιά έχει αποσυρθεί. Τα παλιά hashes και τα στοιχεία δημιουργίας/λήξης παραμένουν στη βάση ως ιστορικά στοιχεία. Για διαγραφή τους μπορείς να απευθυνθείς στον διαχειριστή. Η διαγραφή τους δεν επηρεάζει τη σύνδεση MCP μέσω OAuth.</p><p>Με σύνδεση MCP, το ChatGPT αποκτά πρόσβαση ανάγνωσης στα δικά σου γεύματα, βάρη, προπονήσεις, συντήρηση και στόχους μέσω OAuth. Οι αλλαγές αποθηκεύονται απευθείας μετά από ρητή επιβεβαίωση στο ChatGPT. Για ασφαλείς επαναλήψεις κρατείται αρχείο αιτήματος και αποτελέσματος ανά χρήστη. Τα παλιά drafts διατηρούνται ως ιστορικά δεδομένα, χωρίς να απαιτούνται για νέες εγγραφές. Μπορείς να ανακαλέσεις την πρόσβαση εφαρμογών από Ρυθμίσεις → Λογαριασμός → Συνδεδεμένες εφαρμογές.</p><p>Μπορείς να διαγράψεις γεύματα και προπονήσεις από το ημερολόγιο και να αφαιρέσεις την πρόσβαση συνδεδεμένων εφαρμογών από τις Ρυθμίσεις. Για διαγραφή ολόκληρου του λογαριασμού, απευθύνσου στον διαχειριστή της εφαρμογής. Οι παλιές τοπικές καταγραφές της πρώτης έκδοσης παραμένουν στον browser μέχρι να τις διαγράψεις από τις ρυθμίσεις αποθήκευσής του.</p><p><a href="/">Επιστροφή στο ημερολόγιο</a></p></body></html>
+<!doctype html>
+<html lang="el">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Απόρρητο — Nutrition Tracker</title>
+    <style>
+      body {
+        font-family: system-ui;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 20px;
+        line-height: 1.7;
+        color: #213e34;
+      }
+      a {
+        color: #184d3d;
+      }
+      button {
+        display: block;
+        margin-left: auto;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px;
+        border: 1px solid #d6e5df;
+        border-radius: 12px;
+        color: #1f7a68;
+        background: #f0f5f3;
+        cursor: pointer;
+        font: 600 14px system-ui;
+      }
+      button:focus-visible {
+        outline: 3px solid #83bcae;
+        outline-offset: 3px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <button
+      type="button"
+      id="language-switch"
+      aria-label="Αλλαγή γλώσσας σε Αγγλικά"
+    >
+      EN
+    </button>
+    <section data-language="el">
+      <h1>Απόρρητο — Nutrition Tracker</h1>
+      <p>
+        Η εφαρμογή αποθηκεύει γεύματα (όνομα, ημερομηνία, κατηγορία, θερμίδες,
+        πρωτεΐνη, υδατάνθρακες, λίπος) μετρήσεις βάρους, προπονήσεις (όνομα,
+        ημερομηνία, ενεργές θερμίδες), εκτίμηση συντήρησης και στόχους
+        ανάπαυσης/προπόνησης στο Supabase, συνδεδεμένα με τον λογαριασμό σου. Η
+        σύνδεση γίνεται μέσω Supabase Auth. Η συνεδρία σύνδεσης διατηρείται στον
+        browser.
+      </p>
+      <p>
+        Αν συνδέσεις προσωπικό GPT, τα στοιχεία που επιβεβαιώνεις στη συνομιλία
+        στέλνονται από το ChatGPT στο API της εφαρμογής στο Vercel και
+        αποθηκεύονται στο Supabase. Η συνομιλία διέπεται επίσης από τις
+        ρυθμίσεις και πολιτικές του ChatGPT. Η εφαρμογή δεν αποθηκεύει το πλήρες
+        ιστορικό της συνομιλίας.
+      </p>
+      <p>
+        Η παλιά σύνδεση με προσωπικά κλειδιά έχει αποσυρθεί. Τα παλιά hashes και
+        τα στοιχεία δημιουργίας/λήξης παραμένουν στη βάση ως ιστορικά στοιχεία.
+        Για διαγραφή τους μπορείς να απευθυνθείς στον διαχειριστή. Η διαγραφή
+        τους δεν επηρεάζει τη σύνδεση MCP μέσω OAuth.
+      </p>
+      <p>
+        Με σύνδεση MCP, το ChatGPT αποκτά πρόσβαση ανάγνωσης στα δικά σου
+        γεύματα, βάρη, προπονήσεις, συντήρηση και στόχους μέσω OAuth. Οι αλλαγές
+        αποθηκεύονται απευθείας μετά από ρητή επιβεβαίωση στο ChatGPT. Για
+        ασφαλείς επαναλήψεις κρατείται αρχείο αιτήματος και αποτελέσματος ανά
+        χρήστη. Τα παλιά drafts διατηρούνται ως ιστορικά δεδομένα, χωρίς να
+        απαιτούνται για νέες εγγραφές. Μπορείς να ανακαλέσεις την πρόσβαση
+        εφαρμογών από Ρυθμίσεις → Λογαριασμός → Συνδεδεμένες εφαρμογές.
+      </p>
+      <p>
+        Μπορείς να διαγράψεις γεύματα και προπονήσεις από το ημερολόγιο και να
+        αφαιρέσεις την πρόσβαση συνδεδεμένων εφαρμογών από τις Ρυθμίσεις. Για
+        διαγραφή ολόκληρου του λογαριασμού, απευθύνσου στον διαχειριστή της
+        εφαρμογής. Οι παλιές τοπικές καταγραφές της πρώτης έκδοσης παραμένουν
+        στον browser μέχρι να τις διαγράψεις από τις ρυθμίσεις αποθήκευσής του.
+      </p>
+      <p><a href="/">Επιστροφή στο ημερολόγιο</a></p>
+    </section>
+    <section data-language="en" hidden>
+      <h1>Privacy — Nutrition Tracker</h1>
+      <p>
+        The app stores meals (name, date, category, calories, protein,
+        carbohydrates and fat), weight measurements, workouts (name, date and
+        active calories), a maintenance estimate, and rest/training targets in
+        Supabase, linked to your account. Sign-in uses Supabase Auth. Your
+        sign-in session is kept in your browser.
+      </p>
+      <p>
+        If you connect a personal GPT, the details you confirm in the
+        conversation are sent from ChatGPT to the app's API on Vercel and saved
+        in Supabase. Your conversation is also subject to ChatGPT's settings and
+        policies. The app does not store your full conversation history.
+      </p>
+      <p>
+        The old personal-key connection has been retired. Historical hashes and
+        creation/expiry details remain in the database. Contact the
+        administrator to remove them. Their removal does not affect the OAuth
+        MCP connection.
+      </p>
+      <p>
+        With an MCP connection, ChatGPT gets read access to your own meals,
+        weights, workouts, maintenance estimate and targets through OAuth.
+        Changes are saved directly after your explicit confirmation in ChatGPT.
+        A per-user request and result record enables safe retries. Old drafts
+        are retained as historical data and are not required for new writes. You
+        can revoke app access in Settings → Account → Connected apps.
+      </p>
+      <p>
+        You can delete meals and workouts from your diary and revoke connected
+        app access in Settings. Contact the app administrator to delete your
+        entire account. Local records from the first version remain in your
+        browser until you clear them using its storage settings.
+      </p>
+      <p><a href="/">Back to diary</a></p>
+    </section>
+    <script>
+      (() => {
+        const key = "nutrition-tracker-language";
+        const button = document.getElementById("language-switch");
+        let saved = "el";
+        try {
+          saved = localStorage.getItem(key) || "el";
+        } catch {}
+        const requested = new URLSearchParams(location.search).get("lang");
+        let language = ["el", "en"].includes(requested)
+          ? requested
+          : saved === "en"
+            ? "en"
+            : "el";
+        function render() {
+          document.documentElement.lang = language;
+          document.title =
+            (language === "en" ? "Privacy" : "Απόρρητο") +
+            " — Nutrition Tracker";
+          for (const section of document.querySelectorAll("[data-language]"))
+            section.hidden = section.dataset.language !== language;
+          button.textContent = language === "en" ? "EL" : "EN";
+          button.setAttribute(
+            "aria-label",
+            language === "en" ? "Switch to Greek" : "Αλλαγή γλώσσας σε Αγγλικά",
+          );
+          try {
+            localStorage.setItem(key, language);
+          } catch {}
+        }
+        button.addEventListener("click", () => {
+          language = language === "en" ? "el" : "en";
+          history.replaceState(null, "", "?lang=" + language);
+          render();
+        });
+        render();
+      })();
+    </script>
+  </body>
+</html>
